@@ -20,13 +20,14 @@ indent_mode=2
 [project]
 name=PyMess
 base_path=/run/user/1000/gvfs/sftp:host=spectre2.le.ac.uk,user=mkj13/home/m/mkj13/PythonPackages/PyMess
+description=
 
 [long line marker]
 long_line_behaviour=1
 long_line_column=72
 
 [files]
-current_page=7
+current_page=13
 FILE_NAME_0=80;Python;0;EUTF-8;1;1;0;%2Frun%2Fuser%2F1000%2Fgvfs%2Fsftp%3Ahost%3Dspectre2.le.ac.uk%2Cuser%3Dmkj13%2Fhome%2Fm%2Fmkj13%2FPythonPackages%2FPyMess%2FPyMess%2F__init__.py;0;4
 FILE_NAME_1=484;Python;0;EUTF-8;1;1;0;%2Frun%2Fuser%2F1000%2Fgvfs%2Fsftp%3Ahost%3Dspectre2.le.ac.uk%2Cuser%3Dmkj13%2Fhome%2Fm%2Fmkj13%2FPythonPackages%2FPyMess%2FPyMess%2FGlobals.py;0;4
 FILE_NAME_2=0;Python;0;EUTF-8;1;1;0;%2Frun%2Fuser%2F1000%2Fgvfs%2Fsftp%3Ahost%3Dspectre2.le.ac.uk%2Cuser%3Dmkj13%2Fhome%2Fm%2Fmkj13%2FPythonPackages%2FPyMess%2FPyMess%2FPos%2FGetOrbits.py;0;4
@@ -38,6 +39,9 @@ FILE_NAME_7=75;Python;0;EUTF-8;1;1;0;%2Frun%2Fuser%2F1000%2Fgvfs%2Fsftp%3Ahost%3
 FILE_NAME_8=101;Python;0;EUTF-8;1;1;0;%2Frun%2Fuser%2F1000%2Fgvfs%2Fsftp%3Ahost%3Dspectre2.le.ac.uk%2Cuser%3Dmkj13%2Fhome%2Fm%2Fmkj13%2FPythonPackages%2FPyMess%2FPyMess%2FPos%2FGetTraceFootprints.py;0;4
 FILE_NAME_9=80;Python;0;EUTF-8;1;1;0;%2Fhome%2Fmatt%2FPyMess%2F__init__.py;0;4
 FILE_NAME_10=308;Python;0;EUTF-8;1;1;0;%2Fhome%2Fmatt%2FPyMess%2FPos%2F_ReadOrbits.py;0;4
+FILE_NAME_11=1598;Python;0;EUTF-8;1;1;0;%2Frun%2Fuser%2F1000%2Fgvfs%2Fsftp%3Ahost%3Dspectre2.le.ac.uk%2Cuser%3Dmkj13%2Fhome%2Fm%2Fmkj13%2FPythonPackages%2FPyMess%2FPyMess%2FPos%2FPlotOrbit.py;0;4
+FILE_NAME_12=168;Python;0;EUTF-8;1;1;0;%2Fhome%2Fmatt%2FPyMess%2FPos%2F__init__.py;0;4
+FILE_NAME_13=5637;Python;0;EUTF-8;1;1;0;%2Fhome%2Fmatt%2FPyMess%2FPos%2FPlotOrbit.py;0;4
 
 [VTE]
 last_dir=/home/matt

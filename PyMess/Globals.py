@@ -9,6 +9,7 @@ except:
 #Store loaded MAG data in memory for quick access
 LoadedMAGData = {}
 LoadedMAGRotatedData = {}
+MagRes = None
 
 #Magnetopause and bow shock crossings
 MPData = None
@@ -27,3 +28,6 @@ Traces = {}
 
 #MESSENGER location
 Position = None
+MercurySpeed = None
+AberrationAngle = {}
+
