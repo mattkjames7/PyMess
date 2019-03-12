@@ -2,7 +2,17 @@ import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline
 
 def MPxFunction(Rss=1.42,Alpha=0.5):
+	'''
+	Returns spline function which provides a value of x given rho
+	(sqrt(y**2 + z**2)). 
 	
+	Inputs:
+		Rss: Subsolar point of the magnetopause in Rm.
+		Alpha: Controls the flaring of the magnetopause, usually 0.5.
+		
+	Returns:
+		InterpolatedUnivariateSpline object, or similar.
+	'''
 	Theta = (np.arange(359.0)-179.0)*np.pi/180.0
 	R = Rss*(2.0/(1.0 + np.cos(Theta)))**Alpha
 	x = R*np.cos(Theta)
@@ -29,5 +39,17 @@ def MPxFunction(Rss=1.42,Alpha=0.5):
 
 
 def MPxDist(x,rho,Rss=1.42,Alpha=0.5):
+	'''
+	Calculates the distance along the x axis to the magnetopause.
+	
+	Inputs:
+		x: coordinates in the x direction.
+		rho: coordinates in the sqrt(y**2 + z**2) direction.
+		Rss: Subsolar point of the magnetopause in Rm.
+		Alpha: Controls the flaring of the magnetopause, usually 0.5.
+	
+	Returns:
+		Distance along the x axis between (x,rho) and the magnetopause.
+	'''
 	F = MPxFunction(Rss,Alpha)
 	return np.abs(x-F(rho))
