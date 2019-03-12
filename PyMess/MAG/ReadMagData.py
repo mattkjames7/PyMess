@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline
-from ._RotTrans import _RotTrans
+from ..Tools.RotTrans import RotTrans
 import os
 from ..Pos.GetAberrationAngle import GetAberrationAngle
 from .. import Globals
@@ -50,10 +50,10 @@ def ReadMagData(Date,Minute=False,res=None,Ab=None,DetectGaps=None):
 	
 	if Ab != 0.0:
 		#rotate spacecraft position into aberrated coords	
-		data.Xmsm,data.Ymsm=RotTrans(data.Xmsm,data.Ymsm,Ab*np.pi/180.0)
-		data.Xmso,data.Ymso=RotTrans(data.Xmso,data.Ymso,Ab*np.pi/180.0)
+		data.Xmsm,data.Ymsm = RotTrans(data.Xmsm,data.Ymsm,Ab*np.pi/180.0)
+		data.Xmso,data.Ymso = RotTrans(data.Xmso,data.Ymso,Ab*np.pi/180.0)
 		#rotate bx,by into aberrated coordinate system
-		data.Bx,data.By=RotTrans(data.Bx,data.By,Ab*np.pi/180.0)
+		data.Bx,data.By = RotTrans(data.Bx,data.By,Ab*np.pi/180.0)
 	
 
 	if res != None:

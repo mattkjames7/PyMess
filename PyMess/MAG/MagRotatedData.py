@@ -1,7 +1,6 @@
 import numpy as np
 from .ReadMagData import ReadMagData
 import KT17 as kt17
-from ._RotTrans import _RotTrans
 from ..Pos.GetAberrationAngle import GetAberrationAngle
 from ._MSM2Dipolar import _MSM2Dipolar
 from ..Pos.GetMercuryPos import GetMercuryPos

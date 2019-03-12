@@ -3,7 +3,7 @@ from RecArrayTools.ReadRecarray import ReadRecarray
 import os
 import interp
 
-def ReadRotatedData(Date,Minute=False,res=None,DetectGaps=None):
+def ReadRotatedData(Date,Minute=False,res=None,DetectGaps=None,**kwargs):
 	
 	if Minute:
 		path = os.getenv('MESSENGER_PATH')+'/MAG/Rotated/Minute/'

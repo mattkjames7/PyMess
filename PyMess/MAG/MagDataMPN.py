@@ -3,7 +3,7 @@ from .ReadMagData import ReadMagData
 from ..Magnetopause.MSMtoMPN import MSMtoMPN
 from ..Magnetopause.NearestMPPoint import NearestMP3d
 from ..Magnetopause.MPNormal import MPNormal
-from ._RotTrans import _RotTrans
+from ..Tools.RotTrans import RotTrans
 from scipy.interpolate import InterpolatedUnivariateSpline
 
 def MagDataMPN(Date,Minute=False,res=None,Rsm=1.42,Ab=None):
@@ -69,13 +69,13 @@ def MagDataMPN(Date,Minute=False,res=None,Rsm=1.42,Ab=None):
 			#now rotate full data
 			theta1 = np.arctan2(ny,nx)
 		
-			px_,pM = _RotTrans(FullData.Xmsm,FullData.Ymsm,-theta1)
-			Bx_,BM = _RotTrans(FullData.Bx,FullData.By,-theta1)	
+			px_,pM = RotTrans(FullData.Xmsm,FullData.Ymsm,-theta1)
+			Bx_,BM = RotTrans(FullData.Bx,FullData.By,-theta1)	
 			
 			theta2 = np.arctan2(nz,np.sqrt(nx**2 + ny**2))
 			
-			pN,pL = _RotTrans(px_,FullData.Zmsm,-theta2)
-			BN,BL = _RotTrans(Bx_,FullData.Bz,-theta2)
+			pN,pL = RotTrans(px_,FullData.Zmsm,-theta2)
+			BN,BL = RotTrans(Bx_,FullData.Bz,-theta2)
 
 
 			ut = FullData.ut

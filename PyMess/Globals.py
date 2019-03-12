@@ -28,6 +28,9 @@ Traces = {}
 
 #MESSENGER location
 Position = None
+
+#Mercury location
+MercuryPos = None
 MercurySpeed = None
 AberrationAngle = {}
 
