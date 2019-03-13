@@ -11,6 +11,9 @@ import RecarrayTools as RT
 from ..Tools.DTPlotLabel import DTPlotLabel
 from scipy.interpolate import interp1d,InterpolatedUnivariateSpline
 from ..Pos.GetAberrationAngle import GetAberrationAngle
+from ..Magnetopause.OverlayMP import OverlayMP
+from ..BowShock.OverlayBS import OverlayBS
+
 
 def PlotMagData(Date,ut=[0,24.0],MagType='MSM',Ab=None,Minute=False,Bmag=True,Res=None,Detrend=False,LoFilt=None,HiFilt=None,fig=None,maps=[1,1,0,0],noxlabel=False,LegSize=None,ShowModel=False,ShowBS=True,ShowMP=True,ShadeCrossings=True,ShowEqCrossings=True,LegBG=True,LegLoc='upper right'):
 	'''
@@ -74,9 +77,6 @@ def PlotMagData(Date,ut=[0,24.0],MagType='MSM',Ab=None,Minute=False,Bmag=True,Re
 		DataFunc = ReadMagData
 		PlotLabels = ['$B_x$','$B_y$','$B_z$']
 		DataLabels = ['Bx','By','Bz']
-
-	#MPData = Globals.W13MP
-	#BSData = Globals.W13BS
 
 	#list all of the dates to load
 	if np.size(Date) == 1:
@@ -202,51 +202,10 @@ def PlotMagData(Date,ut=[0,24.0],MagType='MSM',Ab=None,Minute=False,Bmag=True,Re
 		fig.plot(UTc,m1,color=[0.0,1.0,0.0],linestyle='--')
 		fig.plot(UTc,m2,color=[0.0,0.0,1.0],linestyle='--')		
 
-	# if ShowMP:
-		# MPCut = MPData.ut[useMP]
-		# MPCDate = MPData.date[useMP]
-		# MPT = MPData.ctype[useMP]
-	# else:
-		# MPCut = np.array([])
-		# MPDate = np.array([])
-			
-	# if ShowBS:
-		# BSCut = BSData.ut[useBS]
-		# BSCDate = BSData.date[useBS]
-		# BST = BSData.ctype[useBS]
-	# else:
-		# BSCut = np.array([])
-		# BSDate = np.array([])
-		
-	# for i in range(1,MPCut.size):
-		# if MPCut[i] < MPCut[i-1]:
-			# MPCut[i:]+=24.0	
-	# for i in range(1,BSCut.size):
-		# if BSCut[i] < BSCut[i-1]:
-			# BSCut[i:]+=24.0	
-			
-	# if MPCut.size > 0:
-		# for t in MPCut:
-			# if t == MPCut[0]:
-				# labelm = 'MP Crossing' 
-			# else:
-				# labelm = None
-			# fig.plot([t,t],[yrnge[0],yrnge[1]],color='orange',label=labelm)
-		# if ShadeCrossings:
-			# for i in range(1,MPCut.size):
-				# if ((MPT[i-1] == 3) and (MPT[i] == 4)) or ((MPT[i-1] == 5) and (MPT[i] == 6)):
-					# fig.fill([MPCut[i-1],MPCut[i],MPCut[i],MPCut[i-1]],[yrnge[0],yrnge[0],yrnge[1],yrnge[1]],color=[1.0,0.5,0.0,0.25])
-	# if BSCut.size > 0:
-		# for t in BSCut:
-			# if t == BSCut[0]:
-				# labelb = 'BS Crossing' 
-			# else:
-				# labelb = None
-			# fig.plot([t,t],[yrnge[0],yrnge[1]],color='red',label=labelb)
-		# if ShadeCrossings:
-			# for i in range(1,BSCut.size):
-				# if ((BST[i-1] == 1) and (BST[i] == 2)) or ((BST[i-1] == 7) and (BST[i] == 8)):
-					# fig.fill([BSCut[i-1],BSCut[i],BSCut[i],BSCut[i-1]],[yrnge[0],yrnge[0],yrnge[1],yrnge[1]],color=[1.0,0.0,0.0,0.25])
+	if ShowMP:
+		OverlayMP(ax,Date,ShadeCrossings)
+	if ShowBS:
+		OverlayBS(ax,Date,ShadeCrossings)
 	
 	if ShowEqCrossings:
 		eq = np.where(((Zmsm[1:] > 0) & (Zmsm[:-1] <= 0)) | ((Zmsm[1:] < 0) & (Zmsm[:-1] >= 0)))[0]
