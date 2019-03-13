@@ -15,6 +15,12 @@ MagRes = None
 MPData = None
 BSData = None
 
+#SW times
+SWTimes = None
+
+#MSH times
+MSHTimes = None
+
 #FIPS data
 FIPSProtEff = None
 FIPSData = None

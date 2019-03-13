@@ -1,4 +1,9 @@
 from . import Globals
+from . import BowShock
+from . import MAG
+from . import Magnetopause
+from . import Magnetosheath
+from . import Tools
 from . import Pos
 
 
