@@ -16,5 +16,5 @@ def SearchForFilePattern(infolder,pattern):
 			matches[i] = True
 	
 	use = np.where(matches)[0]
-	return files[use]
+	return np.array(files)[use]
 	

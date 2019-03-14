@@ -34,6 +34,21 @@ def ReadPDSFile(fname,fmt):
 	return data,dtype
 	
 def ReadPDSASCII(fname,fmt):
+	'''
+	Will attempt to read a PDS ASCII data file (usually .tab) given the
+	output of PDSFMTtodtype.
+	
+	Inputs:
+		fname: file name of PDS data file.
+		fmt: a tuple containing the output of PDSFMTtodtype.
+	
+	Returns:
+		data,dtype
+		
+		data: numpy.recarray
+		dtype: list of numpy dtypes for the numpy.recarray
+	'''
+
 	dtype,dtypestr,startbytes,stopbytes,ne,ito,ftype = fmt
 	
 	f = open(fname,'r')
@@ -72,6 +87,22 @@ def ReadPDSASCII(fname,fmt):
 	return data,dtype
 			
 def ReadPDSBinary(fname,fmt):
+	'''
+	Will attempt to read a PDS binary data file (usually .dat) given the
+	output of PDSFMTtodtype.
+	
+	Inputs:
+		fname: file name of PDS data file.
+		fmt: a tuple containing the output of PDSFMTtodtype.
+	
+	Returns:
+		data,dtype
+		
+		data: numpy.recarray
+		dtype: list of numpy dtypes for the numpy.recarray
+	'''
+
+
 	dtype,dtypestr,startbytes,stopbytes,ne,ito,ftype = fmt
 	dtypesize = stopbytes[-1]
 	
