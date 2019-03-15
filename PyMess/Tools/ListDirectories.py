@@ -1,22 +1,22 @@
 import os
 import numpy as np
 
-def ListFiles(start,ReturnNames=False):
+def ListDirectories(start,ReturnNames=False):
 	'''
 	Should list the files that exist within a folder.
 	'''
 	
-	FileOut = []
+	DirOut = []
 	NameOut = []
 	for root,dirs,files in os.walk(start,topdown=False):
-		for name in files:
-			FileOut.append(root+'/'+name)
+		for name in dirs:
+			DirOut.append(root+'/'+name)
 			NameOut.append(name)
 	
-	FileOut = np.array(FileOut)
+	DirOut = np.array(DirOut)
 	NameOut = np.array(NameOut)
 	
 	if ReturnNames:
-		return FileOut,NameOut
+		return DirOut,NameOut
 	else:
-		return FileOut
+		return DirOut

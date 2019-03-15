@@ -4,7 +4,7 @@ from ..MAG.ReadMagData import ReadMagData
 from ..MAG.ReadRotatedData import ReadRotatedData
 from .BdotBmp import BdotBmp
 import RecarrayTools as RT
-import TimeTools as TT
+import DateTimeTools as TT
 from .GetMPCrossings import GetMPCrossings
 
 def MPCrossingMagData(Crossing,MagType='MPN',Ab=None,Minute=False,Res=None,Rsm=1.42,Padding=0.0):

@@ -1,7 +1,6 @@
 import numpy as np
-from RecArrayTools.ReadRecarray import ReadRecarray
+from RecarrayTools.ReadRecarray import ReadRecarray
 import os
-import interp
 
 def ReadRotatedData(Date,Minute=False,res=None,DetectGaps=None,**kwargs):
 	

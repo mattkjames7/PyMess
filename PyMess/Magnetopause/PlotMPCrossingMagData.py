@@ -6,7 +6,7 @@ import DateTimeTools as TT
 from .OverlayMP import OverlayMP
 from ..Tools.DTPlotLabel import DTPlotLabel
 
-def PlotMPCrossingMagData(Crossing,MagType='MSM',Ab=None,Minute=False,Rsm,Padding=0.0,fig=None,maps=[1,1,0,0],noxlabel=False):
+def PlotMPCrossingMagData(Crossing,MagType='MSM',Ab=None,Minute=False,Rsm=1.42,Padding=0.0,fig=None,maps=[1,1,0,0],noxlabel=False):
 	'''
 	Plots magnetometer data around the time of MP crossing.
 	

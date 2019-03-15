@@ -68,22 +68,30 @@ def ReadPDSASCII(fname,fmt):
 	data = np.recarray(n,dtype=dtype)
 
 	ndt = ne.size
-
+	
+	good = np.ones(n,dtype='bool')
 	for i in range(0,n):
 		#for each line do the following
 		s = lines[i]
-		for j in range(0,ndt):
+		try:
+			for j in range(0,ndt):
 			
-			#for each data type
-			tmp = s[startbytes[j]:stopbytes[j]]
-			if ne[j] > 1:
-				#split string into array if ne[j] >1 (not scalar)
-				#stride = (stopbytes[j]-startbytes[j])/ne[j]
-				stride = ito[j]
-				tmp = [tmp[p*stride:(p+1)*stride] for p in range(0,ne[j])]
-			tmp = np.array(tmp).astype(dtype[j][1])
-			data[dtype[j][0]][i] = tmp
-			
+				#for each data type
+				tmp = s[startbytes[j]:stopbytes[j]]
+				if ne[j] > 1:
+					#split string into array if ne[j] >1 (not scalar)
+					#stride = (stopbytes[j]-startbytes[j])/ne[j]
+					stride = ito[j]
+					tmp = [(tmp[p*stride:(p+1)*stride]).replace(',','') for p in range(0,ne[j])]
+				tmp = np.array(tmp).astype(dtype[j][1])
+				data[dtype[j][0]][i] = tmp
+		except:
+			#something has gone wrong, maybe there is a line of text
+			#at the top of the file or something
+			good[i] = False
+				
+	keep = np.where(good)[0]
+	data = data[keep]
 	return data,dtype
 			
 def ReadPDSBinary(fname,fmt):
@@ -115,15 +123,20 @@ def ReadPDSBinary(fname,fmt):
 	f = open(fname,'rb')
 	for i in range(0,n):
 		for j in range(0,ndt):
-			tmp = np.fromfile(f,dtype=dtype[j][1],count=ne[j])
-			if ne[j] == 1:
-				tmp = tmp[0]
+			if 'U' in dtype[j][1]:
+				tmpdt = dtype[j][1].replace('>U','S')
+				t = np.fromfile(f,dtype=tmpdt,count=ne[j])[0]
+				tmp = t.decode()
+			else:
+				tmp = np.fromfile(f,dtype=dtype[j][1],count=ne[j])
+				if ne[j] == 1:
+					try:
+						tmp = tmp[0]
+					except:
+						print(dtype[j])
 			data[dtype[j][0]][i] = tmp
 
 	f.close()
 
-	#now we need to byteswap everything!
-	for i in range(0,ndt):
-		data[dtype[i][0]] = data[dtype[i][0]].byteswap()
 
 	return data,dtype

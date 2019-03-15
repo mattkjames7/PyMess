@@ -5,6 +5,7 @@ import RecarrayTools as RT
 from ... import Globals
 from ...Tools.PDSFMTtodtype import PDSFMTtodtype
 import DateTimeTools as TT
+import os
 
 ctsfields = {	'UTC_TIME':				('Date','ut'),
 				'UTC_TIME_JULDAY':  	'JulDay',
@@ -16,7 +17,7 @@ ctsfields = {	'UTC_TIME':				('Date','ut'),
 				'SC_LONGITUDE':			'Lon',
 				'LG1_RAW_EVENTS':		'LG1Raw',
 				'LG2_RAW_EVENTS':		'LG2Raw',
-				'BS_RAW_EVENTS':		'BPRaw',
+				'BP_RAW_EVENTS':		'BPRaw',
 				'SW_TOTAL_EVENTS':		'SWTot',
 				'DEAD_TIME':			'DeadTime',
 				'LG1_RESET':			'LG1Reset',
@@ -28,7 +29,7 @@ ctsfields = {	'UTC_TIME':				('Date','ut'),
 				'BP_OVER_RANGE': 		'BPOver',
 				'LG1_BPP_COIN':			'DoubCoin1',
 				'LG2_BPP_COIN':			'DoubCoin2',
-				'LG1_BPP_LG1_COIN':		'TripCoin',
+				'LG1_BPP_LG2_COIN':		'TripCoin',
 				'TC_EARLY':				'TCEarly',
 				'TC_LATE':				'TCLate'}
 
@@ -113,7 +114,7 @@ ncrfields = {	'UTC_TIME':				('Date','ut'),
 				'BP_CPS':				'CountsBP',	
 				'BP_ERR_CPS':			'CountsErrBP'}	
 
-def ConvertToBinary():
+def ConvertToBinary(ConvCTS=True,ConvGAB=True,ConvGCR=True,ConvSPE=True,ConvNCR=True):
 	
 	#set the NS path
 	nspath = Globals.MessPath+'NS/'
@@ -130,15 +131,16 @@ def ConvertToBinary():
 	#list the 5 products
 	Prods = ['cts','gab','gcr','spe','ncr']
 
+	ConvList = [ConvCTS,ConvGAB,ConvGCR,ConvSPE,ConvNCR]
 
 	#now loop through converting each product
 	for i in range(0,5):
 		print('Converting Product: {:s} ({:d}/{:d})'.format(Prods[i],i+1,5))
-		
-		fmt,files,outdir = nspds[Prod[i]]
-		field = allfields[i]
-		
-		_ConvBinary(fmt,files,outdir,fpatts[i],field)
+		if ConvList[i]:
+			fmt,files,outdir = nspds[Prods[i]]
+			field = allfields[i]
+			
+			_ConvBinary(fmt,files,outdir,fpatts[i],field)
 		
 		
 def _NewDtype(pdsdata,fields):
@@ -146,14 +148,23 @@ def _NewDtype(pdsdata,fields):
 	oldfields = list(fields.keys())
 	
 	newdtype = []
-	
 	for f in oldfields:
-		sh = pdsdata[f].dtype.shape
-		if len(sh) == 0:
-			tmp = (fields[f],pdsdata[f].dtype.str)
+		sh = pdsdata[f].shape
+		if isinstance(fields[f],tuple):
+			#this is some date and or time
+			if len(fields[f]) == 2:
+				newdtype.append(('Date','>i4'))
+				newdtype.append(('ut','>f4'))
+			elif fields[f][0] == 'Date':	
+				newdtype.append(('Date','>i4'))
+			else:
+				newdtype.append(('ut','>f4'))
 		else:
-			tmp = (fields[f],pdsdata[f].dtype.str,pdsdata[f].dtype.shape)
-		newdtype.append(tmp)
+			if len(sh) == 1:
+				tmp = (fields[f],pdsdata[f].dtype.str)
+			else:
+				tmp = (fields[f],pdsdata[f].dtype.str,pdsdata[f].shape[1:])
+			newdtype.append(tmp)
 	return newdtype
 		
 		
@@ -162,20 +173,20 @@ def _ConvBinary(fmt,files,outdir,fpatt,fields):
 	#set the output folder
 	outpath = Globals.MessPath+'NS/'+outdir
 	
-
-	
+	if not os.path.isdir(outpath):
+		os.system('mkdir -pv '+outpath)
 	#get fmt data
 	fmtdata = PDSFMTtodtype(fmt)
 	
 	
 	oldfields = list(fields.keys())
 	newfields = [fields[f] for f in oldfields]
-	
+
 	
 	#loop through files
 	nf = np.size(files)
 	for i in range(0,nf):
-		print('\rConverting file {:d} of {:d}'.format(i+1,nf),end='')
+		
 		
 		#get the date from the file name
 		fsplit = files[i].split('/')
@@ -185,23 +196,38 @@ def _ConvBinary(fmt,files,outdir,fpatt,fields):
 		Date = TT.DayNotoDate(year,doy)
 		
 		#read the file first
-		data = ReadPDSFile(files[i],fmtdata)
+		data,_ = ReadPDSFile(files[i],fmtdata)
 		
 		#get the new dtype if needed
 		if i == 0:
 			dtype = _NewDtype(data,fields)
-		
+			print('dtype: ',dtype)
+			print(data.dtype)
+		print('\rConverting file {:d} of {:d}'.format(i+1,nf),end='')
 		#get the output recarray
 		out = np.recarray(data.size,dtype=dtype)
 		
 		#move data to new recarray
 		for f in oldfields:
-			out[fields[f]] = data[f]
+			
+			
+			if isinstance(fields[f],tuple):
+				#probably a date, time or date and time combination
+				if len(f) == 2:
+					out.Date = [np.int32(x[0:4]+x[5:7]+x[8:10]) for x in data[f]]
+					out.ut = [np.float32(x[11:13])+np.float32(x[14:16])/60.0+np.float32(x[17:])/3600.0 for x in data[f]]
+				elif len(f) == 1 and fields[f] == 'Date':
+					out.Date = [np.int32(x[0:4]+x[5:7]+x[8:10]) for x in data[f]]
+				elif len(f) == 1 and fields[f] == 'ut':
+					out.ut = [np.float32(x[0:2]) + np.float32(x[3:5])/60.0 + np.float32(x[6:])/3600.0 for x in data[f]]
+					
+			else:
+				out[fields[f]] = data[f]
 			
 		#save the file
 		fname = outpath + fpatt.format(Date)
 		RT.SaveRecarray(data,fname)
 		
 	print()
-	print('dtype: ',dtype)
+	
 

@@ -189,6 +189,8 @@ def GetObjDtype(Obj):
 	if 'ITEM_OFFSET' in F:
 		ito = np.where(np.array(F) == 'ITEM_OFFSET')[0]
 		itemoffset = np.int32(V[ito[0]])
+	elif 'ITEMS' in F:
+		itemoffset = itembytes+1
 	else:
 		itemoffset = itembytes
 	
@@ -200,22 +202,22 @@ def GetObjDtype(Obj):
 	name = V[nm[0]]
 	
 	#get length
-	if dtype in ['float','int','uint']:
+	if dtype in ['>f','>i','>u']:
 		if 'ASCII' in dt:
 			#in the ASCII case we assume a length:
-			if dtype == 'float':
-				dtype = dtype+'64'
+			if dtype == '>f':
+				dtype+='8'
 			else:
-				dtype = dtype+'32'
+				dtype+='4'
 		else:
 			#in the binary case we need to work out what size it is in the file
 			if items == 1:
 				#this is a scalar
-				dtype = dtype + '{:d}'.format(bits)
+				dtype = dtype + '{:d}'.format(bits//8)
 			else:
 				#array
-				dtype = dtype + '{:d}'.format(itembytes*8)
-	elif dtype == 'U':
+				dtype = dtype + '{:d}'.format(itembytes)
+	if dtype == '>U':
 		dtype += '{:d}'.format(bt)
 
 
@@ -224,11 +226,13 @@ def GetObjDtype(Obj):
 		
 	return name,dtype,shape,b0,b1,items,itemoffset,isascii
 
-DataTypes = {	'TIME':'U',
-				'ASCII_REAL':'float',
-				'ASCII_INTEGER':'int',
-				'MSB_UNSIGNED_INTEGER':'uint',
-				'CHARACTER':'U'}
+DataTypes = {	'TIME':'>U',
+				'ASCII_REAL':'>f',
+				'IEEE_REAL':'>f',
+				'ASCII_INTEGER':'>i',
+				'MSB_UNSIGNED_INTEGER':'>u',
+				'MSB_INTEGER':'>i',
+				'CHARACTER':'>U'}
 				
 				
 					
