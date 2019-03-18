@@ -20,8 +20,8 @@ cdrfields = {	'MET':				'MET',
 especfields = {	'INDEX':			'Index',
 				'MET':				'MET',
 				'H':				'HFlux',
-				'HE2':				'HE2Flux',
-				'HE':				'HEFlux',
+				'HE2':				'He2Flux',
+				'HE':				'HeFlux',
 				'NA_GROUP':			'NaFlux',
 				'O_GROUP':			'OFlux',}
 				
