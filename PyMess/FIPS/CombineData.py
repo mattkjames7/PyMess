@@ -3,6 +3,17 @@ from .ReadFIPS import ReadFIPS
 from .. import Globals
 import DateTimeTools as TT
 
+def _CalculateProtonEff(Ebins,Tau,Flux,Counts):
+	'''
+	This should calculate the proton efficiency for a given spectrum by
+	comparing the counts and the flux.
+	'''
+	dOmega = np.pi*1.15
+	g = 8.31e-5
+
+	return Counts/(Flux*Ebins*Tau*g*dOmega)
+
+
 def Combine60sData():
 	'''
 	This routine will combine the EDR,CDR and DDR FIPS data into a 
@@ -130,6 +141,19 @@ def _Combine60sDate(Date):
 	n = np.size(StartMET)
 	out = np.recarray(n,dtype=dtype)
 	
+	#save some ion info
+	out.Ion[:,0] = 'H  '
+	out.Ion[:,1] = 'He2'
+	out.Ion[:,2] = 'He '
+	out.Ion[:,3] = 'Na '
+	out.Ion[:,4] = 'O  '
+	out.Mass[:,0] = MassH
+	out.Mass[:,1] = MassHe
+	out.Mass[:,2] = MassHe
+	out.Mass[:,3] = MassNa
+	out.Mass[:,4] = MassO
+	
+	
 	#loop through groups
 	for i in range(0,n):
 		useE = np.where((dE.MET >= StartMET[i]) & (dE.MET < StopMET[i]))[0]
@@ -148,62 +172,89 @@ def _Combine60sDate(Date):
 		else:
 			out[i].EQBins = bins2
 			out[i].Tau = 0.005
-			
-		out[i].VBinsH = np.sqrt((e*2000.0*out[i].EQBins)/massH)
-		out[i].VBinsHe2 = np.sqrt((e*2000.0*out[i].EQBins)/massHe)
-		out[i].VBinsHe = np.sqrt((e*2000.0*out[i].EQBins)/massHe)
-		out[i].VBinsNa = np.sqrt((e*2000.0*out[i].EQBins)/massNa)
-		out[i].VBinsO = np.sqrt((e*2000.0*out[i].EQBins)/massO)
+		
+		for j in range(0,5):
+			out[i].VBins[j] = np.sqrt((e*2000.0*out[i].EQBins)/out[i].Mass[j])
 		
 		
 		#copy counts across,summing over spectra (proton counts only here)
 		if useE.size > 0:
-			out[i].HCounts = np.sum(dE.ProtonRate[useE],0)
+			out[i].Counts[0] = np.sum(dE.ProtonRate[useE],0)
+			out[i].Counts[1:5,:] = 0
 			#add heavy ions here possibly
 		
 		#now to move the fluxes over from ESPEC
 		if useS.size > 0:
-			out[i].HFlux = np.nanmean(dS[useS].HFlux,0)
-			out[i].He2Flux = np.nanmean(dS[useS].He2Flux,0)
-			out[i].HeFlux = np.nanmean(dS[useS].HeFlux,0)
-			out[i].NaFlux = np.nanmean(dS[useS].NaFlux,0)
-			out[i].OFlux = np.nanmean(dS[useS].OFlux,0)
+			out[i].Flux[0] = np.nanmean(dS[useS].HFlux,0)
+			out[i].Flux[1] = np.nanmean(dS[useS].He2Flux,0)
+			out[i].Flux[2] = np.nanmean(dS[useS].HeFlux,0)
+			out[i].Flux[3] = np.nanmean(dS[useS].NaFlux,0)
+			out[i].Flux[4] = np.nanmean(dS[useS].OFlux,0)
 		
 			#calculate PSD
-			out[i].HPSD = out[i].HFlux * (massH/(out[i].VBinsH**2)) * (10.0/e)
-			out[i].He2PSD = out[i].He2Flux * (massHe2/(out[i].VBinsHe2**2)) * (10.0/e)
-			out[i].HePSD = out[i].HeFlux * (massHe/(out[i].VBinsHe**2)) * (10.0/e)
-			out[i].NaPSD = out[i].NaFlux * (massNa/(out[i].VBinsNa**2)) * (10.0/e)
-			out[i].OPSD = out[i].OFlux * (massO/(out[i].VBinsO**2)) * (10.0/e)
-
-		
+			for j in range(0,5):
+				out[i].PSD[j] = out[i].Flux[j]*(out[i].Mass[j]/(out[i].VBins[j]**2)) * (10.0/e)
+	
 		
 		
 		#input NTP values if they exist
 		out[i].HasNTP[:] = False
-		out[i].nH = np.nan
-		out[i].tH = np.nan
-		out[i].pH = np.nan
-		out[i].nHe2 = np.nan
-		out[i].tHe2 = np.nan
-		out[i].pHe2 = np.nan
-		out[i].nHe = np.nan
-		out[i].tHe = np.nan
-		out[i].pHe = np.nan
-		out[i].nNa = np.nan
-		out[i].tNa = np.nan
-		out[i].pNa = np.nan
-		out[i].nO = np.nan
-		out[i].tO = np.nan
-		out[i].pO = np.nan
+		out[i].n[:] = np.nan
+		out[i].t[:] = np.nan
+		out[i].p[:] = np.nan
 		if useN.size > 0:
 			#currently this only exists for H
-			out[i].nH = dN[useN[0]].n
-			out[i].tH = dN[useN[0]].t
-			out[i].pH = dN[useN[0]].p
+			out[i].n[0] = dN[useN[0]].n
+			out[i].t[0] = dN[useN[0]].t
+			out[i].p[0] = dN[useN[0]].p
 			out[i].HasNTP[0] = True
 	
-		#attempt to refit the spectrum with a kappa distribution
+	#calculate efficiencies
+	Tau2 = np.array([5]*52 + [0]*12)/1000.0
+	Tau0 = np.array([95]*60 + [0]*4)/1000.0	
+	E_H = []
+	for i in range(0,n):
+		if out[i].ScanType == 0:
+			Ebins = bins0
+			Tau = Tau0
+		else:
+			Ebins = bins2
+			Tau = Tau2		
+		zero = np.where(out[i].HCounts == 0)[0]
+		E_H.append(_CalculateProtonEff(EBins,Tau,out[i].Flux[0],out[i].Counts[0]))
+		E_H[i][zero] = np.nan
+	E_H = np.array(E_H)
+	E_H = np.nanmean(E_H,0)
+	
+	#attempt to refit the spectrum with a kappa distribution
+	for i in range(0,n):
+		#save efficiency
+		data[i].Efficiency[0,:] = E_H
 		
 
-	#calculate efficiencies
+		#set starting guess for n and T based on original fits if they exist
+		if np.isnan(out[i].n[0]):
+			n0 = 2.0e6
+			T0 = 10.0e6
+		else:
+			n0 = out[i].n[0]*1e6
+			T0 = out[i].T[0]*1e6
+
+	
+		#now try fitting
+		nTK = FitKappaDistCts(out[i].VBins[0],n0,T0,dOmega,out[i].Mass[0],E_H,out[i].NSpec,out[i].Tau,g)
+		
+		#check that the values are all positive at least
+		if nTK[0] > 0 and nTK[1] > 0 and nTK[2] > 0:
+			out[i].nk[0] = nTK[0]
+			out[i].tk[0] = nTK[1]
+			out[i].k[0] = nTK[2]
+			out[i].pk[0] = nTK[0]*k*nTK[1]
+		else:
+			out[i].nk[0] = np.nan
+			out[i].tk[0] = np.nan
+			out[i].k[0] = np.nan
+			out[i].pk[0] = np.nan
+
+	
+	return out
