@@ -1,9 +1,9 @@
 import os
 ModulePath = os.path.dirname(__file__)+'/'
 try:
-	MessPath = os.getenv('MESSENGER_PATH')+'/'
+	MessPath = os.getenv('TEST_MESSENGER_PATH')+'/'
 except:
-	print('Please set MESSENGER_PATH environment variable')
+	print('Please set TEST_MESSENGER_PATH environment variable')
 	MessPath = ''
 
 #Store loaded MAG data in memory for quick access
