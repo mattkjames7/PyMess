@@ -142,20 +142,21 @@ def _ConvBinary(fmt,files,outdir,fpatt,fields,DateInds):
 			
 			if isinstance(fields[f],tuple):
 				#probably a date, time or date and time combination
-				if len(f) == 2:
+				if len(fields[f]) == 2:
+					x = data[f][0]
+					out.Date = [TT.DayNotoDate(np.int32(x[0:4]),np.int32(x[5:8])) for x in data[f]]
+					out.ut = [np.float32(x[9:11])+np.float32(x[12:14])/60.0+np.float32(x[15:])/3600.0 for x in data[f]]
+				elif len(fields[f]) == 1 and fields[f] == 'Date':
 					out.Date = [np.int32(x[0:4]+x[5:7]+x[8:10]) for x in data[f]]
-					out.ut = [np.float32(x[11:13])+np.float32(x[14:16])/60.0+np.float32(x[17:])/3600.0 for x in data[f]]
-				elif len(f) == 1 and fields[f] == 'Date':
-					out.Date = [np.int32(x[0:4]+x[5:7]+x[8:10]) for x in data[f]]
-				elif len(f) == 1 and fields[f] == 'ut':
+				elif len(fields[f]) == 1 and fields[f] == 'ut':
 					out.ut = [np.float32(x[0:2]) + np.float32(x[3:5])/60.0 + np.float32(x[6:])/3600.0 for x in data[f]]
-					
+
 			else:
 				out[fields[f]] = data[f]
 
 		#save the file
 		fname = outpath + fpatt.format(Date)
-		RT.SaveRecarray(data,fname)
+		RT.SaveRecarray(out,fname)
 		
 	print()
 	
