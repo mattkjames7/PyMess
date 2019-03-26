@@ -2,6 +2,9 @@ import numpy as np
 from .ReadFIPS import ReadFIPS
 from .. import Globals
 import DateTimeTools as TT
+from scipy import stats
+from .FitKappaDist import FitKappaDistCts
+from ..Tools.InArray import InArray 
 
 def _CalculateProtonEff(Ebins,Tau,Flux,Counts):
 	'''
@@ -48,10 +51,10 @@ def _Combine60sDate(Date):
 	g = 8.31e-5	
 	e = 1.6022e-19
 	amu = 1.6605e-27
-	massH = 1.007 * amu
-	massHe = 4.0026 * amu
-	massNa = 22.9898 * amu
-	massO = 15.999 * amu
+	MassH = 1.007 * amu
+	MassHe = 4.0026 * amu
+	MassNa = 22.9898 * amu
+	MassO = 15.999 * amu
 	dOmega = 1.15*np.pi
 	k = 1.38064852e-23
 	
@@ -81,7 +84,7 @@ def _Combine60sDate(Date):
 	
 	
 	#get output dtype, file name and path
-	OutPath = Globals.MessPath+'FIPS/Combined/'
+	OutPath = Globals.MessPath+'FIPS/Combined/60s/'
 	dtype = Globals.fips60sdtype
 	fname = OutPath + 'FIPS-60s-{:08d}.bin'.format(Date)
 
@@ -104,12 +107,12 @@ def _Combine60sDate(Date):
 	StopInd = np.copy(dN.StopIndex)
 	nN = dN.size
 	grouped = np.zeros(dS.size)
-	for i in range(0,n):
-		use = np.where((dS.Index >= StartIndex[i]) & (dS.Index <= StopIndex[i]))[0]
+	for i in range(0,nN):
+		use = np.where((dS.Index >= StartInd[i]) & (dS.Index <= StopInd[i]))[0]
 		grouped[use] = True
 	
 	#now to try to group the remaining data
-	met0 = dS.MET[0] - dS.ut[0]/3600.0 #MET at the start of the day
+	met0 = dC.MET[0] - dC.ut[0]/3600.0 #MET at the start of the day
 	#loop through the day one minute at a time
 	NewStartMET = np.zeros(1440,dtype='float64')
 	NewStopMET = np.zeros(1440,dtype='float64')
@@ -118,10 +121,12 @@ def _Combine60sDate(Date):
 	for i in range(0,1440):
 		NewStartMET[i] = met0 + i*60.0
 		NewStopMET[i] = met0 + (i+1)*60.0
-		use = np.where((grouped == False) & (dS.MET >= NewStartMET[i]) & (dS.MET <= NewStopMET))[0]
+		use = np.where((grouped == False) & (dS.MET >= NewStartMET[i]) & (dS.MET <= NewStopMET[i]))[0]
 		if use.size > 0:
 			NewStartInd[i] = dS.Index[use[0]]
 			NewStopInd[i] = dS.Index[use[-1]]
+			NewStartMET[i] = dS.MET[use[0]]
+			NewStopMET[i] = dS.MET[use[-1]]
 
 	keep = np.where(NewStartInd > -1)[0]
 	
@@ -152,20 +157,41 @@ def _Combine60sDate(Date):
 	out.Mass[:,2] = MassHe
 	out.Mass[:,3] = MassNa
 	out.Mass[:,4] = MassO
-	
+
+	#save ut and MET
+	out.Date = Date
+	out.MET = StopMET
+	out.ut = (out.MET-met0)/3600.0
+	out.StartIndex = StartInd
+	out.StopIndex = StopInd
+
 	
 	#loop through groups
 	for i in range(0,n):
-		useE = np.where((dE.MET >= StartMET[i]) & (dE.MET < StopMET[i]))[0]
-		useC = np.where((dC.MET >= StartMET[i]) & (dC.MET < StopMET[i]))[0]
-		useS = np.where((dS.Index >= StartIndex[i]) & (dS.Index <= StopIndex[i]))[0]
-		useN = np.where(dN.StartIndex == StartInd[i])[0]
+		#get the METS from ESPEC first, the rest have to match this!
+		useS = np.where((dS.Index >= StartInd[i]) & (dS.Index <= StopInd[i]))[0]
+		METS = dS.MET[useS]
+
+		out[i].StartMET = METS[0]
+		out[i].StopMET = METS[-1]
+		out[i].MET = METS[-1]
 		
+		#now find the other indices by using the MET list
+		useE = np.where(InArray(dE.MET,METS))[0]
+		useC = np.where(InArray(dC.MET,METS))[0]
+
+		#useE = np.where((dE.MET >= StartMET[i]) & (dE.MET <= StopMET[i]))[0]
+		
+		
+		#useC = np.where((dC.MET >= StartMET[i]) & (dC.MET <= StopMET[i]))[0]
+		useN = np.where(dN.StartIndex == StartInd[i])[0]
+		print(dS.MET[useS])
+
 		#get NSpec
 		out[i].NSpec = useS.size
 		
 		#set E/Q and V bins
-		out[i].ScanType = stats.mode(dE[useE].ScanType)
+		out[i].ScanType = stats.mode(dE[useE].ScanType)[0][0]
 		if out[i].ScanType == 0:
 			out[i].EQBins = bins0
 			out[i].Tau = 0.095
@@ -179,6 +205,11 @@ def _Combine60sDate(Date):
 		
 		#copy counts across,summing over spectra (proton counts only here)
 		if useE.size > 0:
+			if i == 0:
+				print(out[i].MET)
+				print(dE.MET[useE])
+				print(dE.ProtonRate[useE])
+				print(np.sum(dE.ProtonRate[useE],0))
 			out[i].Counts[0] = np.sum(dE.ProtonRate[useE],0)
 			out[i].Counts[1:5,:] = 0
 			#add heavy ions here possibly
@@ -220,8 +251,8 @@ def _Combine60sDate(Date):
 		else:
 			Ebins = bins2
 			Tau = Tau2		
-		zero = np.where(out[i].HCounts == 0)[0]
-		E_H.append(_CalculateProtonEff(EBins,Tau,out[i].Flux[0],out[i].Counts[0]))
+		zero = np.where(out[i].Counts[0] == 0)[0]
+		E_H.append(_CalculateProtonEff(Ebins,Tau,out[i].Flux[0],out[i].Counts[0]))
 		E_H[i][zero] = np.nan
 	E_H = np.array(E_H)
 	E_H = np.nanmean(E_H,0)
@@ -229,7 +260,7 @@ def _Combine60sDate(Date):
 	#attempt to refit the spectrum with a kappa distribution
 	for i in range(0,n):
 		#save efficiency
-		data[i].Efficiency[0,:] = E_H
+		out[i].Efficiency[0,:] = E_H
 		
 
 		#set starting guess for n and T based on original fits if they exist
@@ -242,7 +273,7 @@ def _Combine60sDate(Date):
 
 	
 		#now try fitting
-		nTK = FitKappaDistCts(out[i].VBins[0],n0,T0,dOmega,out[i].Mass[0],E_H,out[i].NSpec,out[i].Tau,g)
+		nTK = FitKappaDistCts(out[i].VBins[0],out[i].Counts[0],n0,T0,dOmega,out[i].Mass[0],E_H,out[i].NSpec,out[i].Tau,g)
 		
 		#check that the values are all positive at least
 		if nTK[0] > 0 and nTK[1] > 0 and nTK[2] > 0:
@@ -258,3 +289,75 @@ def _Combine60sDate(Date):
 
 	
 	return out
+	
+	
+def _Combine10sDate(Date):
+	
+	g = 8.31e-5	
+	e = 1.6022e-19
+	amu = 1.6605e-27
+	massH = 1.007 * amu
+	massHe = 4.0026 * amu
+	massNa = 22.9898 * amu
+	massO = 15.999 * amu
+	dOmega = 1.15*np.pi
+	k = 1.38064852e-23
+	
+	bins2 = np.array([13.577,  12.332,  11.201,  10.174,   9.241,   8.393,
+					 7.623,   6.924,   6.289,   5.712,   5.188,   4.713,   4.28 ,
+					 3.888,   3.531,   3.207,   2.913,   2.646,   2.403,   2.183,
+					 1.983,   1.801,   1.636,   1.485,   1.349,   1.225,   1.113,
+					 1.011,   0.918,   0.834,   0.758,   0.688,   0.625,   0.568,
+					 0.516,   0.468,   0.426,   0.386,   0.351,   0.319,   0.29 ,
+					 0.263,   0.239,   0.217,   0.197,   0.179,   0.163,   0.148,
+					 0.134,   0.122,   0.111,   0.1  ,   0.046,   0.046,   0.046,
+					 0.046,   0.046,   0.046,   0.046,   0.046,   0.046,   0.046,
+					 0.046,   0.046])	
+
+	bins0 = np.array([13.577,  12.332,  11.201,  10.174,   9.241,   8.393,
+					 7.623,   6.924,   6.289,   5.712,   5.188,   4.713,   4.28 ,
+					 3.888,   3.531,   3.207,   2.913,   2.646,   2.403,   2.183,
+					 1.983,   1.801,   1.636,   1.485,   1.349,   1.225,   1.113,
+					 1.011,   0.918,   0.834,   0.758,   0.688,   0.625,   0.568,
+					 0.516,   0.468,   0.426,   0.386,   0.351,   0.319,   0.29 ,
+					 0.263,   0.239,   0.217,   0.197,   0.179,   0.163,   0.148,
+					 0.134,   0.122,   0.111,   0.1  ,   0.091,   0.083,   0.075,
+					 0.068,   0.062,   0.056,   0.051,   0.046,   0.046,   0.046,
+					 0.046,   0.046])	
+					 
+	
+	
+	
+	#get output dtype, file name and path
+	OutPath = Globals.MessPath+'FIPS/Combined/10s/'
+	dtype = Globals.fips10sdtype
+	fname = OutPath + 'FIPS-10s-{:08d}.bin'.format(Date)
+
+
+	#read in the four data files (if they exist)
+	dE = ReadFIPS(Date,'edr')
+	dC = ReadFIPS(Date,'cdr')
+	dS = ReadFIPS(Date,'espec')
+	dN = ReadFIPS(Date,'ntp')
+
+	#check that there are any data points:
+	if dE.size == 0 and dC.size == 0 and dS.size == 0 and dN.size == 0:
+		return #no data found at all for this date
+		
+	#now instead of grouping stuff by the NTP values, we treat each
+	#ESPEC record separately, so the total number of records is whatever
+	#is in the ESPEC file. Hopefully the METs match up with EDR and CDR!
+	n = dS.size
+	out = np.recarray(n,dtype=dtype)
+	
+	#save some ion info
+	out.Ion[:,0] = 'H  '
+	out.Ion[:,1] = 'He2'
+	out.Ion[:,2] = 'He '
+	out.Ion[:,3] = 'Na '
+	out.Ion[:,4] = 'O  '
+	out.Mass[:,0] = MassH
+	out.Mass[:,1] = MassHe
+	out.Mass[:,2] = MassHe
+	out.Mass[:,3] = MassNa
+	out.Mass[:,4] = MassO

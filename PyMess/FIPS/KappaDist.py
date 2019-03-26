@@ -1,5 +1,5 @@
 import numpy as np
-import Gamma.Gamma as Gamma
+from ..Tools.Gamma.Gamma import Gamma
 
 k_B = 1.38064852e-23
 

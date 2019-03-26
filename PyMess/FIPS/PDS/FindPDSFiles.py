@@ -22,7 +22,7 @@ def FindPDSFiles():
 	fmts = ['FIPS_SCAN.FMT','FIPS_SCAN_CDR.FMT','FIPS_ESPEC_DDR.FMT','FIPS_NTP_DDR.FMT',]
 	
 	#list of file patterns
-	patt = ['FIPS_R*EDR*.DAT','FIPS_R*CDR*.DAT','FIPS_ESPEC_*.TAB','FIPS_NTP_*.TAB']
+	patt = ['FIPS_R*EDR*.DAT','FIPS_R*CDR*.TAB','FIPS_ESPEC_*.TAB','FIPS_NTP_*.TAB']
 
 
 	#list the outpur dirs too
@@ -32,7 +32,7 @@ def FindPDSFiles():
 	out = {}
 	
 	#now to find file lists
-	for i in range(0,5):
+	for i in range(0,4):
 		#find the fmt file first
 		fmtfile = SearchForFile(startpath,fmts[i])
 		

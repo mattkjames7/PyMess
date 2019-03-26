@@ -57,6 +57,8 @@ def ConvertToBinary(ConvEDR=True,ConvCDR=True,ConvESPEC=True,ConvNTP=True):
 	#list the 5 products
 	Prods = ['edr','cdr','espec','ntp']
 
+	DateInds = [[6,13],[6,13],[11,18],[9,16]]
+
 	ConvList = [ConvEDR,ConvCDR,ConvESPEC,ConvNTP]
 
 	#now loop through converting each product
@@ -66,7 +68,7 @@ def ConvertToBinary(ConvEDR=True,ConvCDR=True,ConvESPEC=True,ConvNTP=True):
 			fmt,files,outdir = nspds[Prods[i]]
 			field = allfields[i]
 			
-			_ConvBinary(fmt,files,outdir,fpatts[i],field)
+			_ConvBinary(fmt,files,outdir,fpatts[i],field,DateInds[i])
 		
 		
 def _NewDtype(pdsdata,fields):
@@ -95,7 +97,7 @@ def _NewDtype(pdsdata,fields):
 		
 		
 
-def _ConvBinary(fmt,files,outdir,fpatt,fields):
+def _ConvBinary(fmt,files,outdir,fpatt,fields,DateInds):
 	#set the output folder
 	outpath = Globals.MessPath+'FIPS/'+outdir
 	
@@ -117,8 +119,9 @@ def _ConvBinary(fmt,files,outdir,fpatt,fields):
 		#get the date from the file name
 		fsplit = files[i].split('/')
 		flast = fsplit[-1]
-		year = np.int32(flast[10:14])
-		doy = np.int32(flast[14:17])
+		datestr = flast[DateInds[0]:DateInds[1]+1]
+		year = np.int32(datestr[:4])
+		doy = np.int32(datestr[4:7])
 		Date = TT.DayNotoDate(year,doy)
 		
 		#read the file first
@@ -149,7 +152,7 @@ def _ConvBinary(fmt,files,outdir,fpatt,fields):
 					
 			else:
 				out[fields[f]] = data[f]
-			
+
 		#save the file
 		fname = outpath + fpatt.format(Date)
 		RT.SaveRecarray(data,fname)

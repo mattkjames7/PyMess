@@ -82,6 +82,8 @@ def ReadPDSASCII(fname,fmt):
 					#split string into array if ne[j] >1 (not scalar)
 					#stride = (stopbytes[j]-startbytes[j])/ne[j]
 					stride = ito[j]
+					if (ne[j]*stride) != (len(tmp)+1):
+						stride -= 1
 					tmp = [(tmp[p*stride:(p+1)*stride]).replace(',','') for p in range(0,ne[j])]
 				tmp = np.array(tmp).astype(dtype[j][1])
 				data[dtype[j][0]][i] = tmp

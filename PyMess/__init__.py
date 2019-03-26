@@ -1,5 +1,6 @@
 from . import Globals
 from . import BowShock
+from . import FIPS
 from . import MAG
 from . import Magnetopause
 from . import Magnetosheath
