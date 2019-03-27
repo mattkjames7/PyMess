@@ -21,15 +21,18 @@ dtypentp = [('StartIndex', '>i4'), ('StopIndex', '>i4'), ('StartMET', '>f8'),
 fipsdict = {'edr':		('EDR/',dtypeedr,'FIPS-EDR-{:08d}.bin'),
 			'cdr':		('CDR/',dtypecdr,'FIPS-CDR-{:08d}.bin'),
 			'espec':	('ESPEC/',dtypeespec,'FIPS-ESPEC-{:08d}.bin'),
-			'ntp':		('NTP/',dtypentp,'FIPS-NTP-{:08d}.bin')}
+			'ntp':		('NTP/',dtypentp,'FIPS-NTP-{:08d}.bin'),
+			'60':		('Combined/60s/',Globals.fips60sdtype,'FIPS-60s-{:08d}.bin'),
+			'10':		('Combined/10s/',Globals.fips10sdtype,'FIPS-10s-{:08d}.bin'),}
 			
-def ReadFIPS(Date,Type='ntp'):
+def ReadFIPS(Date,Type='60'):
 	'''
 	Reads FIPS data files.
 	
 	Inputs:
 		Date: 32-bit integer date in the format yyyymmdd.
-		Type: String - 'edr'|'cdr'|'espec'|'ntp'
+		Type: String - 'edr'|'cdr'|'espec'|'ntp'|'60'|'10',	default is 
+			'60' which corresponds to the 60s combined data.
 		
 	Returns:
 		numpy.recarray
