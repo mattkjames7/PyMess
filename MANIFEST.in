@@ -1,0 +1,3 @@
+include PyMess/__data/*
+include PyMess/__data/MagRes/*
+
