@@ -87,6 +87,9 @@ def _GetMisfitFuncCts(v,C,dC,dOmega=1.15*np.pi,mass=1.67212e-27,Eff=1.0,nSpec=1.
 		n,T,K = X 
 		
 		Cm = KappaDistCts(v,n,T,K,mass,Eff,dOmega,nSpec,Tau,g)
+		print('C:')
+		print(Cm)
+		print(C)
 		
 		diff = np.sqrt(np.sum(((C-Cm)**2))/C.size)
 
@@ -124,10 +127,14 @@ def FitKappaDistCts(v,Counts,n0,T0,dOmega=1.15*np.pi,mass=1.67212e-27,Eff=1.0,nS
 	dC[dC == 0.0] = 1.0e-40
 
 	#select only good data to fit to
-	good = np.where((Counts >= 0.0))[0]
+	if np.size(Eff) == 1:
+		Eff = np.array([Eff]*64).flatten()
+	
+	good = np.where((Counts >= 0.0) & np.isfinite(Eff))[0]
 	if (good.size < 3.0):
 		return -1, -1 -1
-	Func = _GetMisfitFuncCts(v[good],Counts[good],dC[good],dOmega,mass,Eff,nSpec,Tau,g)
+
+	Func = _GetMisfitFuncCts(v[good],Counts[good],dC[good],dOmega,mass,Eff[good],nSpec,Tau,g)
 	res = minimize(Func,[n0,T0,130.0],method='nelder-mead')
 	if not res.success:
 		return -1, -1, -1

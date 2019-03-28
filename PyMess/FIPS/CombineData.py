@@ -35,6 +35,7 @@ def Combine60sData():
 	#get list of dates to try from the first  flyby to the last day of 
 	#orbital data
 	date = 20080820
+	date = 20110326
 	dates = []
 	while date <= 20150430:
 		dates.append(date)
@@ -204,7 +205,7 @@ def _Combine60sDate(Date):
 			out[i].Tau = 0.005
 		
 		for j in range(0,5):
-			out[i].VBins[j] = np.sqrt((e*2000.0*out[i].EQBins)/out[i].Mass[j])
+			out[i].VBins[j] = np.sqrt((e*2000.0*out[i].EQBins)/out[i].Mass[j])/1000.0
 		
 		
 		#copy counts across,summing over spectra (proton counts only here)
@@ -228,16 +229,16 @@ def _Combine60sDate(Date):
 		
 		
 		#input NTP values if they exist
-		out[i].HasNTP[:] = False
-		out[i].n[:] = np.nan
-		out[i].t[:] = np.nan
-		out[i].p[:] = np.nan
+		out.HasNTP[i,:] = False
+		out.n[i,:] = np.nan
+		out.t[i,:] = np.nan
+		out.p[i,:] = np.nan
 		if useN.size > 0:
 			#currently this only exists for H
-			out[i].n[0] = dN[useN[0]].n
-			out[i].t[0] = dN[useN[0]].t
-			out[i].p[0] = dN[useN[0]].p
-			out[i].HasNTP[0] = True
+			out.n[i,0] = dN[useN[0]].n
+			out.t[i,0] = dN[useN[0]].t
+			out.p[i,0] = dN[useN[0]].p
+			out.HasNTP[i,0] = True
 	print()
 	#calculate efficiencies
 	Tau2 = np.array([5]*52 + [0]*12)/1000.0
@@ -256,10 +257,11 @@ def _Combine60sDate(Date):
 		E_H[i][zero] = np.nan
 	E_H = np.array(E_H)
 	E_H = np.nanmean(E_H,0)
+	E_H[np.isfinite(E_H) == False] = np.nan
 	
 	print()
 	#attempt to refit the spectrum with a kappa distribution
-	for i in range(0,n):
+	for i in range(0,14):
 		print('\rRefitting Spectra {:f}%'.format(100.0*(i+1)/n),end='')
 		#save efficiency
 		out[i].Efficiency[0,:] = E_H
@@ -271,18 +273,19 @@ def _Combine60sDate(Date):
 			T0 = 10.0e6
 		else:
 			n0 = out[i].n[0]*1e6
-			T0 = out[i].T[0]*1e6
-
-	
+			T0 = out[i].t[0]*1e6
+		print()
+		print(n0,T0)
+		print(out.VBins[i,0]*1000.0,out.Counts[i,0],n0,T0,dOmega,out.Mass[i,0],E_H,out[i].NSpec,out[i].Tau,g)
 		#now try fitting
-		nTK = FitKappaDistCts(out[i].VBins[0],out[i].Counts[0],n0,T0,dOmega,out[i].Mass[0],E_H,out[i].NSpec,out[i].Tau,g)
-		
+		nTK = FitKappaDistCts(out.VBins[i,0]*1000.0,out.Counts[i,0],n0,T0,dOmega,out.Mass[i,0],E_H,out[i].NSpec,out[i].Tau,g)
+		print(nTK)
 		#check that the values are all positive at least
 		if nTK[0] > 0 and nTK[1] > 0 and nTK[2] > 0:
-			out[i].nk[0] = nTK[0]
-			out[i].tk[0] = nTK[1]
-			out[i].k[0] = nTK[2]
-			out[i].pk[0] = nTK[0]*k*nTK[1]
+			out[i].nk[0] = nTK[0]/1e6
+			out[i].tk[0] = nTK[1]/1e6
+			out[i].k[0] = nTK[2]/1e6
+			out[i].pk[0] = nTK[0]*k*nTK[1]/1e9
 		else:
 			out[i].nk[0] = np.nan
 			out[i].tk[0] = np.nan
