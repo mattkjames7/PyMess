@@ -6,6 +6,7 @@ from scipy import stats
 from .FitKappaDist import FitKappaDistCts
 from ..Tools.InArray import InArray 
 import os
+import RecarrayTools as RT
 
 def _CalculateProtonEff(Ebins,Tau,Flux,Counts):
 	'''
