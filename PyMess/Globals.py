@@ -45,3 +45,7 @@ fips60sdtype = [('Date','int32'),('ut','float32'),('MET','float64'),('StartMET',
 				('NSpec','int32'),('Tau','float32'),('CDRQuality','int16',(7,)),('Ion','U3',(5,)),('Mass','float32',(5,)),('HasNTP','bool8',(5,)),('EQBins','float32',(64,)),
 				('Efficiency','float32',(5,64)),('VBins','float32',(5,64)),('Counts','float32',(5,64)),('Flux','float32',(5,64,)),('PSD','float32',(5,64,)),
 				('n','float32',(5,)),('t','float32',(5,)),('p','float32',(5,)),('nk','float32',(5,)),('tk','float32',(5,)),('pk','float32',(5,)),('k','float32',(5,))]
+fips10sdtype = [('Date','int32'),('ut','float32'),('MET','float64'),('StartMET','float64'),('StopMET','float64'),('StartIndex','int32'),('StopIndex','int32'),('ScanType','int8'),
+				('NSpec','int32'),('Tau','float32'),('CDRQuality','int16',(7,)),('Ion','U3',(5,)),('Mass','float32',(5,)),('HasNTP','bool8',(5,)),('EQBins','float32',(64,)),
+				('Efficiency','float32',(5,64)),('VBins','float32',(5,64)),('Counts','float32',(5,64)),('Flux','float32',(5,64,)),('PSD','float32',(5,64,)),
+				('n','float32',(5,)),('t','float32',(5,)),('p','float32',(5,)),('nk','float32',(5,)),('tk','float32',(5,)),('pk','float32',(5,)),('k','float32',(5,))]
