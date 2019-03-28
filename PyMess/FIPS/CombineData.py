@@ -289,7 +289,6 @@ def _Combine60sDate(Date):
 
 	
 	if out.size > 0:
-		fname = 
 		RT.SaveRecarray(out,fname)
 	
 	
