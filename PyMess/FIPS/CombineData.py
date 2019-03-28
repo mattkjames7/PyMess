@@ -5,6 +5,7 @@ import DateTimeTools as TT
 from scipy import stats
 from .FitKappaDist import FitKappaDistCts
 from ..Tools.InArray import InArray 
+import os
 
 def _CalculateProtonEff(Ebins,Tau,Flux,Counts):
 	'''
