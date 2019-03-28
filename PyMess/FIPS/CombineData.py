@@ -85,6 +85,8 @@ def _Combine60sDate(Date):
 	
 	#get output dtype, file name and path
 	OutPath = Globals.MessPath+'FIPS/Combined/60s/'
+	if not os.path.isdir(OutPath):
+		os.system('mkdir -pv '+OutPath)
 	dtype = Globals.fips60sdtype
 	fname = OutPath + 'FIPS-60s-{:08d}.bin'.format(Date)
 
@@ -168,6 +170,7 @@ def _Combine60sDate(Date):
 	
 	#loop through groups
 	for i in range(0,n):
+		print('\rCopying data {:f}%'.format(100.0*(i+1)/n),end='')
 		#get the METS from ESPEC first, the rest have to match this!
 		useS = np.where((dS.Index >= StartInd[i]) & (dS.Index <= StopInd[i]))[0]
 		METS = dS.MET[useS]
@@ -185,7 +188,6 @@ def _Combine60sDate(Date):
 		
 		#useC = np.where((dC.MET >= StartMET[i]) & (dC.MET <= StopMET[i]))[0]
 		useN = np.where(dN.StartIndex == StartInd[i])[0]
-		print(dS.MET[useS])
 
 		#get NSpec
 		out[i].NSpec = useS.size
@@ -205,11 +207,6 @@ def _Combine60sDate(Date):
 		
 		#copy counts across,summing over spectra (proton counts only here)
 		if useE.size > 0:
-			if i == 0:
-				print(out[i].MET)
-				print(dE.MET[useE])
-				print(dE.ProtonRate[useE])
-				print(np.sum(dE.ProtonRate[useE],0))
 			out[i].Counts[0] = np.sum(dE.ProtonRate[useE],0)
 			out[i].Counts[1:5,:] = 0
 			#add heavy ions here possibly
@@ -239,12 +236,13 @@ def _Combine60sDate(Date):
 			out[i].t[0] = dN[useN[0]].t
 			out[i].p[0] = dN[useN[0]].p
 			out[i].HasNTP[0] = True
-	
+	print()
 	#calculate efficiencies
 	Tau2 = np.array([5]*52 + [0]*12)/1000.0
 	Tau0 = np.array([95]*60 + [0]*4)/1000.0	
 	E_H = []
 	for i in range(0,n):
+		print('\rCalculating Efficiencies {:f}%'.format(100.0*(i+1)/n),end='')
 		if out[i].ScanType == 0:
 			Ebins = bins0
 			Tau = Tau0
@@ -257,8 +255,10 @@ def _Combine60sDate(Date):
 	E_H = np.array(E_H)
 	E_H = np.nanmean(E_H,0)
 	
+	print()
 	#attempt to refit the spectrum with a kappa distribution
 	for i in range(0,n):
+		print('\rRefitting Spectra {:f}%'.format(100.0*(i+1)/n),end='')
 		#save efficiency
 		out[i].Efficiency[0,:] = E_H
 		
@@ -288,7 +288,9 @@ def _Combine60sDate(Date):
 			out[i].pk[0] = np.nan
 
 	
-	return out
+	if out.size > 0:
+		fname = 
+		RT.SaveRecarray(out,fname)
 	
 	
 def _Combine10sDate(Date):
