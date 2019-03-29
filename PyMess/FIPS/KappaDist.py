@@ -18,6 +18,13 @@ def KappaDist(v,n,T,K,m):
 	Returns:
 		Array of PSD corresponding to each velocity in v.
 	'''
+	v = np.float64(v)
+	n = np.float64(n)
+	T = np.float64(T)
+	K = np.float64(K)
+	m = np.float64(m)
+	
+	
 	Tk = K*T/(K-1.5)
 	wk = np.sqrt(((2.0*K - 3.0)*k_B*Tk)/(K*m))
 	f = (n/(2.0*np.pi*(K*wk**2.0)**1.5)) * (Gamma(K+1)/(Gamma(K-0.5)*Gamma(1.5))) * (1.0 + (v**2)/(K*wk**2))**(-(K+1))
@@ -45,8 +52,8 @@ def KappaDistCts(v,n,T,K,m,ProtonEff=1.0,dOmega=1.15*np.pi,nSpec=1.0,Tau=0.095,g
 	Returns:
 		Array of counts corresponding to each velocity in v.
 	'''	
-	f = KappaDist(n,v,T,m,K)*dOmega
-	v4 = v**4
-	A = (Tau*g*ProtonEff*nSpec)/20.0
+	f = KappaDist(v,n,T,K,m)*dOmega
+	v4 = np.float64(v)**4
+	A = (Tau*g*np.float64(ProtonEff)*nSpec)/20.0
 	C = A*v4*f
 	return C/1000.0

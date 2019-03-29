@@ -20,8 +20,7 @@ def _GetMisfitFunc(v,f,df,mass=1.67212e-27):
 		n,T,K = X 
 		
 		fk = KappaDist(v,n,T,K,mass)
-		#if np.isnan(fk[0]):
-	#		print(n,T,K,fk)
+
 		lf = np.log10(f)
 		lk = np.log10(fk)
 		diff = np.sqrt(np.sum(((lf-lk)**2)/df)/f.size)
@@ -60,7 +59,6 @@ def FitKappaDist(v,f,Counts,n0,T0,mass=1.67212e-27):
 		return -1, -1, -1
 	Func = _GetMisfitFunc(v[good],f[good],df[good],mass)
 	res = minimize(Func,[n0,T0,5.0],method='nelder-mead')
-	print(res.success)
 	#return n,T and Kappa fitted
 	return res.x
 
@@ -87,6 +85,7 @@ def _GetMisfitFuncCts(v,C,dC,dOmega=1.15*np.pi,mass=1.67212e-27,Eff=1.0,nSpec=1.
 		n,T,K = X 
 		
 		Cm = KappaDistCts(v,n,T,K,mass,Eff,dOmega,nSpec,Tau,g)
+
 		
 		diff = np.sqrt(np.sum(((C-Cm)**2))/C.size)
 
@@ -124,10 +123,14 @@ def FitKappaDistCts(v,Counts,n0,T0,dOmega=1.15*np.pi,mass=1.67212e-27,Eff=1.0,nS
 	dC[dC == 0.0] = 1.0e-40
 
 	#select only good data to fit to
-	good = np.where((Counts >= 0.0))[0]
+	if np.size(Eff) == 1:
+		Eff = np.array([Eff]*64).flatten()
+	
+	good = np.where((Counts >= 0.0) & np.isfinite(Eff))[0]
 	if (good.size < 3.0):
 		return -1, -1 -1
-	Func = _GetMisfitFuncCts(v[good],Counts[good],dC[good],dOmega,mass,Eff,nSpec,Tau,g)
+
+	Func = _GetMisfitFuncCts(v[good],Counts[good],dC[good],dOmega,mass,Eff[good],nSpec,Tau,g)
 	res = minimize(Func,[n0,T0,130.0],method='nelder-mead')
 	if not res.success:
 		return -1, -1, -1
