@@ -5,6 +5,9 @@ try:
 except:
 	print('Please set TEST_MESSENGER_PATH environment variable')
 	MessPath = ''
+	
+#mission elapsed time
+MET = None
 
 #Store loaded MAG data in memory for quick access
 LoadedMAGData = {}
