@@ -19,7 +19,7 @@ def _CalculateProtonEff(Ebins,Tau,Flux,Counts):
 	return Counts/(Flux*Ebins*Tau*g*dOmega)
 
 
-def Combine60sData():
+def Combine60sData(StartI=0,StopI=None):
 	'''
 	This routine will combine the EDR,CDR and DDR FIPS data into a 
 	single file for each date. Multiple high time resolution spectra 
@@ -35,19 +35,35 @@ def Combine60sData():
 	#get list of dates to try from the first  flyby to the last day of 
 	#orbital data
 	date = 20080820
-	date = 20110326
 	dates = []
 	while date <= 20150430:
 		dates.append(date)
 		date = TT.PlusDay(date)
 	nd = np.size(dates)
 	
-	#loop through each date
+	#test each date to see if the required files exist
+	exists = np.zeros(nd,dtype='bool')
+	path = Globals.MessPath + 'FIPS/'
 	for i in range(0,nd):
+		ee = os.path.isfile(path + 'EDR/' + 'FIPS-EDR-{:08d}.bin'.format(dates[i]))
+		ce = os.path.isfile(path + 'CDR/' + 'FIPS-CDR-{:08d}.bin'.format(dates[i]))
+		se = os.path.isfile(path + 'ESPEC/' + 'FIPS-ESPEC-{:08d}.bin'.format(dates[i]))
+		ne = os.path.isfile(path + 'NTP/' + 'FIPS-NTP-{:08d}.bin'.format(dates[i]))
+		exists[i] = ee | ce | se | ne
+	use = np.where(exists)[0]
+	dates = np.array(dates)[use]
+	nd = np.size(dates)
+	if StopI is None:
+		StopI = nd
+		
+	#loop through each date
+	for i in range(StartI,StopI):
 		print('Combining Date {0} of {1} ({2})'.format(i+1,nd,dates[i]))
 		_Combine60sDate(dates[i])
 	
+			
 
+			
 def _Combine60sDate(Date):
 
 
@@ -196,14 +212,19 @@ def _Combine60sDate(Date):
 		out[i].NSpec = useS.size
 		
 		#set E/Q and V bins
-		out[i].ScanType = stats.mode(dE[useE].ScanType)[0][0]
-		if out[i].ScanType == 0:
+		if useE.size == 0:
+			out[i].ScanType = -1
 			out[i].EQBins = bins0
 			out[i].Tau = 0.095
 		else:
-			out[i].EQBins = bins2
-			out[i].Tau = 0.005
-		
+			out[i].ScanType = stats.mode(dE[useE].ScanType)[0][0]
+			if out[i].ScanType == 0:
+				out[i].EQBins = bins0
+				out[i].Tau = 0.095
+			else:
+				out[i].EQBins = bins2
+				out[i].Tau = 0.005
+			
 		for j in range(0,5):
 			out[i].VBins[j] = np.sqrt((e*2000.0*out[i].EQBins)/out[i].Mass[j])/1000.0
 		
@@ -256,12 +277,13 @@ def _Combine60sDate(Date):
 		E_H.append(_CalculateProtonEff(Ebins,Tau,out[i].Flux[0],out[i].Counts[0]))
 		E_H[i][zero] = np.nan
 	E_H = np.array(E_H)
-	E_H = np.nanmean(E_H,0)
-	E_H[np.isfinite(E_H) == False] = np.nan
+	if np.size(E_H.shape) == 2:
+		E_H = np.nanmean(E_H,0)
+		E_H[np.isfinite(E_H) == False] = np.nan
 	
 	print()
 	#attempt to refit the spectrum with a kappa distribution
-	for i in range(0,14):
+	for i in range(0,n):
 		print('\rRefitting Spectra {:f}%'.format(100.0*(i+1)/n),end='')
 		#save efficiency
 		out[i].Efficiency[0,:] = E_H
@@ -274,25 +296,22 @@ def _Combine60sDate(Date):
 		else:
 			n0 = out[i].n[0]*1e6
 			T0 = out[i].t[0]*1e6
-		print()
-		print(n0,T0)
-		print(out.VBins[i,0]*1000.0,out.Counts[i,0],n0,T0,dOmega,out.Mass[i,0],E_H,out[i].NSpec,out[i].Tau,g)
+
 		#now try fitting
 		nTK = FitKappaDistCts(out.VBins[i,0]*1000.0,out.Counts[i,0],n0,T0,dOmega,out.Mass[i,0],E_H,out[i].NSpec,out[i].Tau,g)
-		print(nTK)
 		#check that the values are all positive at least
 		if nTK[0] > 0 and nTK[1] > 0 and nTK[2] > 0:
 			out[i].nk[0] = nTK[0]/1e6
 			out[i].tk[0] = nTK[1]/1e6
-			out[i].k[0] = nTK[2]/1e6
-			out[i].pk[0] = nTK[0]*k*nTK[1]/1e9
+			out[i].k[0] = nTK[2]
+			out[i].pk[0] = nTK[0]*k*nTK[1]*1e9
 		else:
 			out[i].nk[0] = np.nan
 			out[i].tk[0] = np.nan
 			out[i].k[0] = np.nan
 			out[i].pk[0] = np.nan
 
-	
+	print()
 	if out.size > 0:
 		RT.SaveRecarray(out,fname)
 	

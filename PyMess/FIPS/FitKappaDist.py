@@ -20,8 +20,7 @@ def _GetMisfitFunc(v,f,df,mass=1.67212e-27):
 		n,T,K = X 
 		
 		fk = KappaDist(v,n,T,K,mass)
-		#if np.isnan(fk[0]):
-	#		print(n,T,K,fk)
+
 		lf = np.log10(f)
 		lk = np.log10(fk)
 		diff = np.sqrt(np.sum(((lf-lk)**2)/df)/f.size)
@@ -60,7 +59,6 @@ def FitKappaDist(v,f,Counts,n0,T0,mass=1.67212e-27):
 		return -1, -1, -1
 	Func = _GetMisfitFunc(v[good],f[good],df[good],mass)
 	res = minimize(Func,[n0,T0,5.0],method='nelder-mead')
-	print(res.success)
 	#return n,T and Kappa fitted
 	return res.x
 
@@ -87,9 +85,7 @@ def _GetMisfitFuncCts(v,C,dC,dOmega=1.15*np.pi,mass=1.67212e-27,Eff=1.0,nSpec=1.
 		n,T,K = X 
 		
 		Cm = KappaDistCts(v,n,T,K,mass,Eff,dOmega,nSpec,Tau,g)
-		print('C:')
-		print(Cm)
-		print(C)
+
 		
 		diff = np.sqrt(np.sum(((C-Cm)**2))/C.size)
 
