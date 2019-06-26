@@ -48,6 +48,6 @@ def OverlayBS(ax,Date,ShadeCrossings=True,UseLabel=True):
 			else:
 				labelm = None
 			ax.plot([ut0[i],ut0[i]],[yrnge[0],yrnge[1]],color='red',label=labelm,linewidth=2.0)
-			ax.plot([ut1[i],ut1[i]],[yrnge[0],yrnge[1]],color='red',label=labelm,linewidth=2.0)
+			ax.plot([ut1[i],ut1[i]],[yrnge[0],yrnge[1]],color='red',linewidth=2.0)
 			if ShadeCrossings:
 				ax.fill([ut0[i],ut1[i],ut1[i],ut0[i]],[yrnge[0],yrnge[0],yrnge[1],yrnge[1]],color=[1.0,0.0,0.0,0.25])

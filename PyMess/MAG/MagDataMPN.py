@@ -1,12 +1,14 @@
 import numpy as np
 from .ReadMagData import ReadMagData
-from ..Magnetopause.MSMtoMPN import MSMtoMPN
-from ..Magnetopause.NearestMPPoint import NearestMP3d
-from ..Magnetopause.MPNormal import MPNormal
+
 from ..Tools.RotTrans import RotTrans
 from scipy.interpolate import InterpolatedUnivariateSpline
 
 def MagDataMPN(Date,Minute=False,res=None,Rsm=1.42,Ab=None):
+	from ..Magnetopause.MSMtoMPN import MSMtoMPN
+	from ..Magnetopause.NearestMPPoint import NearestMP3d
+	from ..Magnetopause.MPNormal import MPNormal
+
 	'''
 	This procedure should return magnetometer data rotated into 
 	a magnetopause normal coordinate system based on the Shue et al

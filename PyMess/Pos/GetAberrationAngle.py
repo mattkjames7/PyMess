@@ -1,5 +1,6 @@
 from .. import Globals
 from .GetMercurySpeed import GetMercurySpeed
+import numpy as np
 
 def GetAberrationAngle(Date=None,Vsw=440.0):
 	'''

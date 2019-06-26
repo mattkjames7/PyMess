@@ -90,10 +90,10 @@ def PlotMagData(Date,ut=[0,24.0],MagType='MSM',Ab=None,Minute=False,Bmag=True,Re
 			
 	#now to load all of those dates
 	nd = np.size(dates)
-	data = DataFunc(dates[0],Minute=Minute,res=res,Ab=Ab)
+	data = DataFunc(dates[0],Minute=Minute,res=Res,Ab=Ab)
 	if nd > 1:
 		for i in range(1,nd):
-			tmp = DataFunc(dates[i],Minute=Minute,res=res,Ab=Ab)
+			tmp = DataFunc(dates[i],Minute=Minute,res=Res,Ab=Ab)
 			data = RT.JoinRecarray(data,tmp)
 			
 	#now to remove anything that is out of the desired time range
@@ -152,17 +152,17 @@ def PlotMagData(Date,ut=[0,24.0],MagType='MSM',Ab=None,Minute=False,Bmag=True,Re
 		B2 = B2-lob3	
 
 	#set plot limits on y-axis
-	maxb=np.nanmax(bm)
+	maxb = np.nanmax(Bm)
 	if maxb > 500.0:
 		maxb = 500.0
-	yrnge=[-maxb,maxb]
+	yrnge = [-maxb,maxb]
 		
 	#create plot
 	if fig == None:
 		fig=plt
 		fig.figure()
-	fig.subplot2grid((maps[1],maps[0]),(maps[3],maps[2]))
-	ax = fig.axis([UTc[0],UTc[-1],yrnge[0],yrnge[1]])
+	ax = fig.subplot2grid((maps[1],maps[0]),(maps[3],maps[2]))
+	fig.axis([UTc[0],UTc[-1],yrnge[0],yrnge[1]])
 	
 	colors = [[1.0,0.0,0.0],[0.0,1.0,0.0],[0.0,0.0,1.0]]
 	B = [B0,B1,B2]
@@ -226,7 +226,7 @@ def PlotMagData(Date,ut=[0,24.0],MagType='MSM',Ab=None,Minute=False,Bmag=True,Re
 		ax.xaxis.set_visible(False)
 		
 
-	fig.ylabel('B Field [nT]')
+	fig.ylabel('$\mathbf{B}$ (nT)')
 	
 	if LegLoc[:3] == 'out':
 		ll = LegLoc.split()[1]

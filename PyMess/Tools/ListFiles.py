@@ -8,7 +8,7 @@ def ListFiles(start,ReturnNames=False):
 	
 	FileOut = []
 	NameOut = []
-	for root,dirs,files in os.walk(start,topdown=False):
+	for root,dirs,files in os.walk(start,topdown=False,followlinks=True):
 		for name in files:
 			FileOut.append(root+'/'+name)
 			NameOut.append(name)
