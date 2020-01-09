@@ -236,7 +236,7 @@ def _Combine60sDateSpecies(Date,Species='H'):
 			out[i].PSD = out[i].Flux*(mass/(out[i].VBins**2)) * (10.0/e)
 		
 		#save the quality flags
-		if useC.size > 0:
+		if useC.size > 0 and Species == 'H':
 			out[i].CDRQuality[:useC.size] = dC[useC].Quality
 		
 		
@@ -376,57 +376,14 @@ def _Combine10sDateSpecies(Date,Species='H'):
 		return #no data found at all for this date
 		
 	
-	
-	
-	#now we need to work out how many records there are - NTP values 
-	#don't exist for all data, so using that will cut out other spectra
-	#might be a good idea to group up the CDR or EDR data
-	StartMET = np.copy(dN.StartMET)
-	StopMET = np.copy(dN.StopMET)
-	StartInd = np.copy(dN.StartIndex)
-	StopInd = np.copy(dN.StopIndex)
-	nN = dN.size
-	grouped = np.zeros(dS.size, dtype='bool')
-	for i in range(0,nN):
-		use = np.where((dS.Index >= StartInd[i]) & (dS.Index <= StopInd[i]))[0]
-		grouped[use] = True
-	
-	#now to group up the rest
-	notgrouped = grouped == False
-	ng = np.where(notgrouped)[0]
-	met = dS.MET[ng]
-	ind = dS.Index[ng]
+	#find number of record using either EDR (for H) or ESPEC (for everything else)
+	if Species == 'H':
+		n = dE.size
+	else:
+		n = dS.size
+		
 
-	if ng.size > 0:
-		StM = []
-		SpM = []
-		StI = []
-		SpI = []
-		i = 0
-		while i < ng.size:
-			use = np.where((met >= met[i]) & (met <= met[i]+60.0))[0]
-			StM.append(met[use[0]])
-			SpM.append(met[use[-1]])
-		
-			StI.append(ind[use[0]])
-			SpI.append(ind[use[-1]])
-		
-			i = use[-1] + 1
-			
-		StartMET = np.append(StartMET,np.array(StM))
-		StopMET = np.append(StopMET,np.array(SpM))
-		StartInd = np.append(StartInd,np.array(StI))
-		StopInd = np.append(StopInd,np.array(SpI))
-		
-		srt = np.argsort(StartMET)
-		
-		StartMET = StartMET[srt]
-		StopMET = StopMET[srt]
-		StartInd = StartInd[srt]
-		StopInd = StopInd[srt]
-	
-	#now we should have grouped all of the data, time to create the output array
-	n = np.size(StartMET)
+	#now time to create the output array
 	out = np.recarray(n,dtype=dtype)
 
 	#save some ion info
@@ -440,8 +397,7 @@ def _Combine10sDateSpecies(Date,Species='H'):
 	out.Date = Date
 	out.MET = StopMET
 	out.ut = (out.MET-met0)/3600.0
-	out.StartIndex = StartInd
-	out.StopIndex = StopInd
+	out.Index = dE.Index
 
 	#set default CDR quality flag
 	#Normally 0 = good, 1 = bad, here -1 = not present
