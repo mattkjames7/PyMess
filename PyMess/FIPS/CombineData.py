@@ -376,12 +376,15 @@ def _Combine10sDateSpecies(Date,Species='H'):
 		return #no data found at all for this date
 		
 	
-	#find number of record using either EDR (for H) or ESPEC (for everything else)
+	#find number of record using either EDR/CDR (for H) or ESPEC (for everything else)
 	if Species == 'H':
-		n = dE.size
+		n = dC.size
+		MET = dC.MET
+		Index = dC.Index
 	else:
 		n = dS.size
-		
+		MET = dS.MET
+		Index = dS.Index
 
 	#now time to create the output array
 	out = np.recarray(n,dtype=dtype)
@@ -395,10 +398,10 @@ def _Combine10sDateSpecies(Date,Species='H'):
 	#save ut and MET
 	met0 = dC.MET[0] - dC.ut[0]*3600.0 #MET at the start of the day
 	out.Date = Date
-	out.MET = StopMET
+	out.Index = Index
+	out.MET = MET
 	out.ut = (out.MET-met0)/3600.0
-	out.Index = dE.Index
-
+	
 	#set default CDR quality flag
 	#Normally 0 = good, 1 = bad, here -1 = not present
 	out.CDRQuality[:] = -1
@@ -411,26 +414,21 @@ def _Combine10sDateSpecies(Date,Species='H'):
 	for i in range(0,n):
 		print('\rCopying data {:f}%'.format(100.0*(i+1)/n),end='')
 		#get the METS from ESPEC first, the rest have to match this!
-		useS = np.where((dS.Index >= StartInd[i]) & (dS.Index <= StopInd[i]))[0]
-		METS = dS.MET[useS]
+		if Species == 'H':
+			useS = np.where(dS.Index == Index[i])[0]
+			useE = np.array([i])
+			useC = np.array([i])
+		else:
+			useS = np.array([i])
+			useC = np.where(dC.Index == Index[i])[0]
+			useE = useC
 
-		out[i].StartMET = METS[0]
-		out[i].StopMET = METS[-1]
-		out[i].MET = METS[-1]
-		
-		#now find the other indices by using the MET list
-		useE = np.where(InArray(dE.MET,METS))[0]
-		useC = np.where(InArray(dC.MET,METS))[0]
 
-		#useE = np.where((dE.MET >= StartMET[i]) & (dE.MET <= StopMET[i]))[0]
-		
-		
+
 		#useC = np.where((dC.MET >= StartMET[i]) & (dC.MET <= StopMET[i]))[0]
-		useN = np.where(dN.StartIndex == StartInd[i])[0]
+		useN = np.where((dN.StartIndex <= Index[i]) & (dN.StopIndex >= Index[i]))[0]
 
-		#get NSpec
-		out[i].NSpec = useS.size
-		
+			
 		#set E/Q and V bins
 		if useE.size == 0:
 			out[i].ScanType = -1
@@ -456,14 +454,14 @@ def _Combine10sDateSpecies(Date,Species='H'):
 		
 		#now to move the fluxes over from ESPEC
 		if useS.size > 0:
-			out[i].Flux = np.nanmean(Flux[useS],0)
+			out[i].Flux = Flux[useS[0]]
 
 			#calculate PSD
 			out[i].PSD = out[i].Flux*(mass/(out[i].VBins**2)) * (10.0/e)
 		
 		#save the quality flags
 		if useC.size > 0:
-			out[i].CDRQuality[:useC.size] = dC[useC].Quality
+			out[i].CDRQuality = dC[useC[0]].Quality
 		
 		
 		#input NTP values if they exist
@@ -538,7 +536,7 @@ def _Combine10sDateSpecies(Date,Species='H'):
 				T0 = out[i].t*1e6
 
 			#now try fitting
-			nTK = FitKappaDistCts(out.VBins[i]*1000.0,out.Counts[i],n0,T0,dOmega,mass,Eff,out[i].NSpec,out[i].Tau,g)
+			nTK = FitKappaDistCts(out.VBins[i]*1000.0,out.Counts[i],n0,T0,dOmega,mass,Eff,1,out[i].Tau,g)
 			#check that the values are all positive at least
 			if nTK[0] > 0 and nTK[1] > 0 and nTK[2] > 0:
 				out[i].nk = nTK[0]/1e6
