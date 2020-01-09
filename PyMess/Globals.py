@@ -1,4 +1,5 @@
 import os
+import numpy as np
 ModulePath = os.path.dirname(__file__)+'/'
 try:
 	MessPath = os.getenv('TEST_MESSENGER_PATH')+'/'
@@ -44,7 +45,7 @@ MercurySpeed = None
 AberrationAngle = {}
 
 #E/Q bin energies (ev) - EQBins[ScanType] provides the correct energy range
-bins2 = np.array([ 14.948,  13.577,  12.332,  11.201,  10.174,   9.241,   8.393,
+bins2 = np.array([  13.577,  12.332,  11.201,  10.174,   9.241,   8.393,
 					 7.623,   6.924,   6.289,   5.712,   5.188,   4.713,   4.28 ,
 					 3.888,   3.531,   3.207,   2.913,   2.646,   2.403,   2.183,
 					 1.983,   1.801,   1.636,   1.485,   1.349,   1.225,   1.113,
@@ -55,7 +56,7 @@ bins2 = np.array([ 14.948,  13.577,  12.332,  11.201,  10.174,   9.241,   8.393,
 					 0.046,   0.046,   0.046,   0.046,   0.046,   0.046,   0.046,
 					 0.046,   0.046])	
 
-bins0 = np.array([ 14.948,  13.577,  12.332,  11.201,  10.174,   9.241,   8.393,
+bins0 = np.array([  13.577,  12.332,  11.201,  10.174,   9.241,   8.393,
 					 7.623,   6.924,   6.289,   5.712,   5.188,   4.713,   4.28 ,
 					 3.888,   3.531,   3.207,   2.913,   2.646,   2.403,   2.183,
 					 1.983,   1.801,   1.636,   1.485,   1.349,   1.225,   1.113,
@@ -68,7 +69,7 @@ bins0 = np.array([ 14.948,  13.577,  12.332,  11.201,  10.174,   9.241,   8.393,
 
 
 EQBins = {	0:	bins0,
-			1:	bins2}
+			2:	bins2}
 
 #Tau
 Tau = {	0:	0.095,
@@ -93,7 +94,7 @@ dtype60s = [('Date','int32'),('ut','float32'),('MET','float64'),
 			('StartIndex','int32'),('StopIndex','int32'),
 			('ScanType','int8'),
 			('NSpec','int32'),('Tau','float32'),
-			('CDRQuality','int16',(7,)),
+			('CDRQuality','int16',(7,)),('NTPQuality','int16'),
 			('Ion','U3'),('HasNTP','bool8'),('EQBins','float32',(64,)),
 			('Efficiency','float32',(64,)),('VBins','float32',(64,)),
 			('Counts','float32',(64,)),('Flux','float32',(64,)),('PSD','float32',(64,)),
@@ -104,7 +105,7 @@ dtype10s = [('Date','int32'),('ut','float32'),('MET','float64'),
 			('StartIndex','int32'),
 			('ScanType','int8'),
 			('Tau','float32'),
-			('CDRQuality','int16'),
+			('CDRQuality','int16'),('NTPQuality','int16'),
 			('Ion','U3'),('HasNTP','bool8'),('EQBins','float32',(64,)),
 			('Efficiency','float32',(64,)),('VBins','float32',(64,)),
 			('Counts','float32',(64,)),('Flux','float32',(64,)),('PSD','float32',(64,)),

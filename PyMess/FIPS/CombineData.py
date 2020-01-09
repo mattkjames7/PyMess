@@ -76,17 +76,17 @@ def _Combine60sDateSpecies(Date,Species='H'):
 	#use species to calculate some constants
 	mass = Globals.Constants.amu * Globals.IonMass.get(Species,Globals.IonMass['H'])
 	e = Globals.Constants.e
+	g = Globals.Constants.g
+	kB = Globals.Constants.kB
 	dOmega = Globals.Constants.dOmega
 	eqbins0 = Globals.EQBins[0]
 	eqbins2 = Globals.EQBins[2]
-	eqbinc0 = 0.5*(eqbins0[1:] + eqbins0[:-1])
-	eqbinc2 = 0.5*(eqbins2[1:] + eqbins2[:-1])
 	if Species == 'He2':
-		vbinc0 = np.sqrt((2*e*2000.0*eqbinc0)/mass)
-		vbinc2 = np.sqrt((2*e*2000.0*eqbinc2)/mass)
+		vbins0 = np.sqrt((2*e*2000.0*eqbins0)/mass)
+		vbins2 = np.sqrt((2*e*2000.0*eqbins2)/mass)
 	else:
-		vbinc0 = np.sqrt((e*2000.0*eqbinc0)/mass)
-		vbinc2 = np.sqrt((e*2000.0*eqbinc2)/mass)
+		vbins0 = np.sqrt((e*2000.0*eqbins0)/mass)
+		vbins2 = np.sqrt((e*2000.0*eqbins2)/mass)
 	
 	
 	#get output dtype, file name and path
@@ -173,6 +173,11 @@ def _Combine60sDateSpecies(Date,Species='H'):
 	out.StartIndex = StartInd
 	out.StopIndex = StopInd
 
+	#set default CDR quality flag
+	#Normally 0 = good, 1 = bad, here -1 = not present
+	out.CDRQuality[:] = -1
+	out.NTPQuality[:] = -1
+
 	#get the appropriate flux
 	Flux = dS[Species+'Flux']
 	
@@ -203,17 +208,17 @@ def _Combine60sDateSpecies(Date,Species='H'):
 		#set E/Q and V bins
 		if useE.size == 0:
 			out[i].ScanType = -1
-			out[i].EQBins = eqbinc0
+			out[i].EQBins = eqbins0
 			out[i].Tau = 0.095
 		else:
 			out[i].ScanType = stats.mode(dE[useE].ScanType)[0][0]
 			if out[i].ScanType == 0:
-				out[i].EQBins = eqbinc0
-				out[i].VBins = vbinc0
+				out[i].EQBins = eqbins0
+				out[i].VBins = vbins0/1000.0
 				out[i].Tau = 0.095
 			else:
-				out[i].EQBins = eqbinc2
-				out[i].VBins = vbinc2
+				out[i].EQBins = eqbins2
+				out[i].VBins = vbins2/1000.0
 				out[i].Tau = 0.005
 			
 		
@@ -230,20 +235,23 @@ def _Combine60sDateSpecies(Date,Species='H'):
 			#calculate PSD
 			out[i].PSD = out[i].Flux*(mass/(out[i].VBins**2)) * (10.0/e)
 		
-		
+		#save the quality flags
+		if useC.size > 0:
+			out[i].CDRQuality[:useC.size] = dC[useC].Quality
 		
 		
 		#input NTP values if they exist
-		out.HasNTP[i,:] = False
-		out.n[i,:] = np.nan
-		out.t[i,:] = np.nan
-		out.p[i,:] = np.nan
-		if useN.size > 0:
+		out.HasNTP[i] = False
+		out.n[i] = np.nan
+		out.t[i] = np.nan
+		out.p[i] = np.nan
+		if useN.size > 0 and Species == 'H':
 			#currently this only exists for H
-			out.n[i,0] = dN[useN[0]].n
-			out.t[i,0] = dN[useN[0]].t
-			out.p[i,0] = dN[useN[0]].p
-			out.HasNTP[i,0] = True
+			out.n[i] = dN[useN[0]].n
+			out.t[i] = dN[useN[0]].t
+			out.p[i] = dN[useN[0]].p
+			out.HasNTP[i] = True
+			out.NTPQuality[i] = dN[useN[0]].Quality
 	print()
 	
 	#This following bit will only work for protons currently, for all other ions Eff = 1
@@ -255,15 +263,15 @@ def _Combine60sDateSpecies(Date,Species='H'):
 		for i in range(0,n):
 			print('\rCalculating Efficiencies {:f}%'.format(100.0*(i+1)/n),end='')
 			if out[i].ScanType == 0:
-				Ebins = bins0
+				Ebins = eqbins0
 				Tau = Tau0
 			else:
-				Ebins = bins2
+				Ebins = eqbins2
 				Tau = Tau2		
 			zero = np.where(out[i].Counts == 0)[0]
-			Eff[i] = _CalculateProtonEff(Ebins,Tau,out[i].Flux[0],out[i].Counts)
+			Eff[i] = _CalculateProtonEff(Ebins,Tau,out[i].Flux,out[i].Counts)
 			Eff[i][zero] = np.nan
-		Eff = np.array(E_H)
+		
 		if np.size(Eff.shape) == 2:
 			Eff = np.nanmean(Eff,0)
 			Eff[np.isfinite(Eff) == False] = np.nan
@@ -274,15 +282,14 @@ def _Combine60sDateSpecies(Date,Species='H'):
 		for i in range(0,n):
 			print('\rCalculating Efficiencies {:f}%'.format(100.0*(i+1)/n),end='')
 			if out[i].ScanType == 0:
-				Ebins = bins0
+				Ebins = eqbins0
 				Tau = Tau0
 			else:
-				Ebins = bins2
+				Ebins = eqbins2
 				Tau = Tau2		
 			zero = np.where(out[i].Counts == 0)[0]
 			Eff[i] = Tau*1.0
 			Eff[i][zero] = np.nan
-		Eff = np.array(Eff)
 		if np.size(Eff.shape) == 2:
 			Eff = np.nanmean(Eff,0)
 			Eff[np.isfinite(Eff) == False] = np.nan
@@ -297,31 +304,301 @@ def _Combine60sDateSpecies(Date,Species='H'):
 			
 
 			#set starting guess for n and T based on original fits if they exist
-			if np.isnan(out[i].n[0]):
+			if np.isnan(out[i].n):
 				n0 = 2.0e6
 				T0 = 10.0e6
 			else:
-				n0 = out[i].n[0]*1e6
-				T0 = out[i].t[0]*1e6
+				n0 = out[i].n*1e6
+				T0 = out[i].t*1e6
 
 			#now try fitting
-			nTK = FitKappaDistCts(out.VBins[i,0]*1000.0,out.Counts[i,0],n0,T0,dOmega,mass,E_H,out[i].NSpec,out[i].Tau,g)
+			nTK = FitKappaDistCts(out.VBins[i]*1000.0,out.Counts[i],n0,T0,dOmega,mass,Eff,out[i].NSpec,out[i].Tau,g)
 			#check that the values are all positive at least
 			if nTK[0] > 0 and nTK[1] > 0 and nTK[2] > 0:
-				out[i].nk[0] = nTK[0]/1e6
-				out[i].tk[0] = nTK[1]/1e6
-				out[i].k[0] = nTK[2]
-				out[i].pk[0] = nTK[0]*k*nTK[1]*1e9
+				out[i].nk = nTK[0]/1e6
+				out[i].tk = nTK[1]/1e6
+				out[i].k = nTK[2]
+				out[i].pk = nTK[0]*kB*nTK[1]*1e9
 			else:
-				out[i].nk[0] = np.nan
-				out[i].tk[0] = np.nan
-				out[i].k[0] = np.nan
-				out[i].pk[0] = np.nan
+				out[i].nk = np.nan
+				out[i].tk = np.nan
+				out[i].k = np.nan
+				out[i].pk = np.nan
 
 		print()
-	return out
 	if out.size > 0:
-		RT.SaveRecarray(out,fname)		
+		RT.SaveRecarray(out,fname)	
+	return out
+					
+def _Combine10sDateSpecies(Date,Species='H'):
+	'''
+	Combines the relevant files for a given species on a given date.
+	
+	Inputs
+	=======
+	Date : integer, format: yyyymmdd
+	Species: string 'H','He','He2','O','Na'
+	
+	'''
+	
+	#use species to calculate some constants
+	mass = Globals.Constants.amu * Globals.IonMass.get(Species,Globals.IonMass['H'])
+	e = Globals.Constants.e
+	g = Globals.Constants.g
+	kB = Globals.Constants.kB
+	dOmega = Globals.Constants.dOmega
+	eqbins0 = Globals.EQBins[0]
+	eqbins2 = Globals.EQBins[2]
+	if Species == 'He2':
+		vbins0 = np.sqrt((2*e*2000.0*eqbins0)/mass)
+		vbins2 = np.sqrt((2*e*2000.0*eqbins2)/mass)
+	else:
+		vbins0 = np.sqrt((e*2000.0*eqbins0)/mass)
+		vbins2 = np.sqrt((e*2000.0*eqbins2)/mass)
+	
+	
+	#get output dtype, file name and path
+	OutPath = Globals.MessPath+'FIPS/Combined/60s/{:s}/'.format(Species)
+	if not os.path.isdir(OutPath):
+		os.system('mkdir -pv '+OutPath)
+	dtype = Globals.dtype60s
+	fname = OutPath + '{:08d}.bin'.format(Date)
+	
+	#read in the four data files (if they exist)
+	dS = ReadFIPS(Date,'espec')
+	dN = ReadFIPS(Date,'ntp')
+	dE = ReadFIPS(Date,'edr')
+	dC = ReadFIPS(Date,'cdr')
+
+
+	#check that there are any data points:
+	if dE.size == 0 and dC.size == 0 and dS.size == 0 and dN.size == 0:
+		return #no data found at all for this date
+		
+	
+	
+	
+	#now we need to work out how many records there are - NTP values 
+	#don't exist for all data, so using that will cut out other spectra
+	#might be a good idea to group up the CDR or EDR data
+	StartMET = np.copy(dN.StartMET)
+	StopMET = np.copy(dN.StopMET)
+	StartInd = np.copy(dN.StartIndex)
+	StopInd = np.copy(dN.StopIndex)
+	nN = dN.size
+	grouped = np.zeros(dS.size, dtype='bool')
+	for i in range(0,nN):
+		use = np.where((dS.Index >= StartInd[i]) & (dS.Index <= StopInd[i]))[0]
+		grouped[use] = True
+	
+	#now to group up the rest
+	notgrouped = grouped == False
+	ng = np.where(notgrouped)[0]
+	met = dS.MET[ng]
+	ind = dS.Index[ng]
+
+	if ng.size > 0:
+		StM = []
+		SpM = []
+		StI = []
+		SpI = []
+		i = 0
+		while i < ng.size:
+			use = np.where((met >= met[i]) & (met <= met[i]+60.0))[0]
+			StM.append(met[use[0]])
+			SpM.append(met[use[-1]])
+		
+			StI.append(ind[use[0]])
+			SpI.append(ind[use[-1]])
+		
+			i = use[-1] + 1
+			
+		StartMET = np.append(StartMET,np.array(StM))
+		StopMET = np.append(StopMET,np.array(SpM))
+		StartInd = np.append(StartInd,np.array(StI))
+		StopInd = np.append(StopInd,np.array(SpI))
+		
+		srt = np.argsort(StartMET)
+		
+		StartMET = StartMET[srt]
+		StopMET = StopMET[srt]
+		StartInd = StartInd[srt]
+		StopInd = StopInd[srt]
+	
+	#now we should have grouped all of the data, time to create the output array
+	n = np.size(StartMET)
+	out = np.recarray(n,dtype=dtype)
+
+	#save some ion info
+	spstr = Species + (3 - (len(Species)))*' '
+	out.Ion = spstr
+	out.Mass = mass
+
+
+	#save ut and MET
+	met0 = dC.MET[0] - dC.ut[0]*3600.0 #MET at the start of the day
+	out.Date = Date
+	out.MET = StopMET
+	out.ut = (out.MET-met0)/3600.0
+	out.StartIndex = StartInd
+	out.StopIndex = StopInd
+
+	#set default CDR quality flag
+	#Normally 0 = good, 1 = bad, here -1 = not present
+	out.CDRQuality[:] = -1
+	out.NTPQuality[:] = -1
+
+	#get the appropriate flux
+	Flux = dS[Species+'Flux']
+	
+	#loop through groups
+	for i in range(0,n):
+		print('\rCopying data {:f}%'.format(100.0*(i+1)/n),end='')
+		#get the METS from ESPEC first, the rest have to match this!
+		useS = np.where((dS.Index >= StartInd[i]) & (dS.Index <= StopInd[i]))[0]
+		METS = dS.MET[useS]
+
+		out[i].StartMET = METS[0]
+		out[i].StopMET = METS[-1]
+		out[i].MET = METS[-1]
+		
+		#now find the other indices by using the MET list
+		useE = np.where(InArray(dE.MET,METS))[0]
+		useC = np.where(InArray(dC.MET,METS))[0]
+
+		#useE = np.where((dE.MET >= StartMET[i]) & (dE.MET <= StopMET[i]))[0]
+		
+		
+		#useC = np.where((dC.MET >= StartMET[i]) & (dC.MET <= StopMET[i]))[0]
+		useN = np.where(dN.StartIndex == StartInd[i])[0]
+
+		#get NSpec
+		out[i].NSpec = useS.size
+		
+		#set E/Q and V bins
+		if useE.size == 0:
+			out[i].ScanType = -1
+			out[i].EQBins = eqbins0
+			out[i].Tau = 0.095
+		else:
+			out[i].ScanType = stats.mode(dE[useE].ScanType)[0][0]
+			if out[i].ScanType == 0:
+				out[i].EQBins = eqbins0
+				out[i].VBins = vbins0/1000.0
+				out[i].Tau = 0.095
+			else:
+				out[i].EQBins = eqbins2
+				out[i].VBins = vbins2/1000.0
+				out[i].Tau = 0.005
+			
+		
+		#copy counts across,summing over spectra (proton counts only here)
+		if useE.size > 0 and Species == 'H':
+			out[i].Counts = np.sum(dE.ProtonRate[useE],0)
+		else:
+			out[i].Counts[:] = 0
+		
+		#now to move the fluxes over from ESPEC
+		if useS.size > 0:
+			out[i].Flux = np.nanmean(Flux[useS],0)
+
+			#calculate PSD
+			out[i].PSD = out[i].Flux*(mass/(out[i].VBins**2)) * (10.0/e)
+		
+		#save the quality flags
+		if useC.size > 0:
+			out[i].CDRQuality[:useC.size] = dC[useC].Quality
+		
+		
+		#input NTP values if they exist
+		out.HasNTP[i] = False
+		out.n[i] = np.nan
+		out.t[i] = np.nan
+		out.p[i] = np.nan
+		if useN.size > 0 and Species == 'H':
+			#currently this only exists for H
+			out.n[i] = dN[useN[0]].n
+			out.t[i] = dN[useN[0]].t
+			out.p[i] = dN[useN[0]].p
+			out.HasNTP[i] = True
+			out.NTPQuality[i] = dN[useN[0]].Quality
+	print()
+	
+	#This following bit will only work for protons currently, for all other ions Eff = 1
+	if Species == 'H':
+		#calculate efficiencies
+		Tau2 = np.array([5]*52 + [0]*12)/1000.0
+		Tau0 = np.array([95]*60 + [0]*4)/1000.0	
+		Eff = np.zeros((n,64),dtype='float32')
+		for i in range(0,n):
+			print('\rCalculating Efficiencies {:f}%'.format(100.0*(i+1)/n),end='')
+			if out[i].ScanType == 0:
+				Ebins = eqbins0
+				Tau = Tau0
+			else:
+				Ebins = eqbins2
+				Tau = Tau2		
+			zero = np.where(out[i].Counts == 0)[0]
+			Eff[i] = _CalculateProtonEff(Ebins,Tau,out[i].Flux,out[i].Counts)
+			Eff[i][zero] = np.nan
+		
+		if np.size(Eff.shape) == 2:
+			Eff = np.nanmean(Eff,0)
+			Eff[np.isfinite(Eff) == False] = np.nan
+	else:
+		Tau2 = np.array([5]*52 + [0]*12)/1000.0
+		Tau0 = np.array([95]*60 + [0]*4)/1000.0	
+		Eff = np.zeros((n,64),dtype='float32')
+		for i in range(0,n):
+			print('\rCalculating Efficiencies {:f}%'.format(100.0*(i+1)/n),end='')
+			if out[i].ScanType == 0:
+				Ebins = eqbins0
+				Tau = Tau0
+			else:
+				Ebins = eqbins2
+				Tau = Tau2		
+			zero = np.where(out[i].Counts == 0)[0]
+			Eff[i] = Tau*1.0
+			Eff[i][zero] = np.nan
+		if np.size(Eff.shape) == 2:
+			Eff = np.nanmean(Eff,0)
+			Eff[np.isfinite(Eff) == False] = np.nan
+		print()
+	
+	if Species == 'H':
+		#attempt to refit the spectrum with a kappa distribution
+		for i in range(0,n):
+			print('\rRefitting Spectra {:f}%'.format(100.0*(i+1)/n),end='')
+			#save efficiency
+			out[i].Efficiency[:] = Eff
+			
+
+			#set starting guess for n and T based on original fits if they exist
+			if np.isnan(out[i].n):
+				n0 = 2.0e6
+				T0 = 10.0e6
+			else:
+				n0 = out[i].n*1e6
+				T0 = out[i].t*1e6
+
+			#now try fitting
+			nTK = FitKappaDistCts(out.VBins[i]*1000.0,out.Counts[i],n0,T0,dOmega,mass,Eff,out[i].NSpec,out[i].Tau,g)
+			#check that the values are all positive at least
+			if nTK[0] > 0 and nTK[1] > 0 and nTK[2] > 0:
+				out[i].nk = nTK[0]/1e6
+				out[i].tk = nTK[1]/1e6
+				out[i].k = nTK[2]
+				out[i].pk = nTK[0]*kB*nTK[1]*1e9
+			else:
+				out[i].nk = np.nan
+				out[i].tk = np.nan
+				out[i].k = np.nan
+				out[i].pk = np.nan
+
+		print()
+	if out.size > 0:
+		RT.SaveRecarray(out,fname)	
+	return out
 					
 def _Combine60sDate(Date):
 
