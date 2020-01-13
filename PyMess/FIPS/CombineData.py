@@ -19,7 +19,7 @@ def _CalculateProtonEff(Ebins,Tau,Flux,Counts):
 	return Counts/(Flux*Ebins*Tau*g*dOmega)
 
 
-def Combine60sData(StartI=0,StopI=None):
+def Combine60sData(StartI=0,StopI=None,Verbose=True,Overwrite=False):
 	'''
 	This routine will combine the EDR,CDR and DDR FIPS data into a 
 	single file for each date. Multiple high time resolution spectra 
@@ -55,14 +55,66 @@ def Combine60sData(StartI=0,StopI=None):
 	nd = np.size(dates)
 	if StopI is None:
 		StopI = nd
+	else:
+		StopI = np.min([StopI,nd])
 		
 	#loop through each date
 	for i in range(StartI,StopI):
-		print('Combining Date {0} of {1} ({2})'.format(i+1,nd,dates[i]))
-		_Combine60sDate(dates[i])
+		print('Combining Date {0} of {1} ({2})'.format(i+1,nd,dates[i]),flush=True)
+		_Combine60sDateSpecies(dates[i],'H',Verbose,Overwrite)
+		_Combine60sDateSpecies(dates[i],'He',Verbose,Overwrite)
+		_Combine60sDateSpecies(dates[i],'He2',Verbose,Overwrite)
+		_Combine60sDateSpecies(dates[i],'O',Verbose,Overwrite)
+		_Combine60sDateSpecies(dates[i],'Na',Verbose,Overwrite)
+	
+	
+def Combine10sData(StartI=0,StopI=None,Verbose=True,Overwrite=False):
+	'''
+	This routine will combine the EDR,CDR and DDR FIPS data into a 
+	single file for each date. Multiple high time resolution spectra 
+	will be combined such that the overall resolution is ~10s. It will 
+	also refit the spectra using a kappa distribution function. FIPS 
+	plasma moment fits must be treated with caution, as they may not be 
+	representative of the actual plasma at times - machine learning work 
+	is being used to remove any bad fits.
+	
+	
+	'''
+	
+	#get list of dates to try from the first  flyby to the last day of 
+	#orbital data
+	date = 20080820
+	dates = []
+	while date <= 20150430:
+		dates.append(date)
+		date = TT.PlusDay(date)
+	nd = np.size(dates)
+	
+	#test each date to see if the required files exist
+	exists = np.zeros(nd,dtype='bool')
+	path = Globals.MessPath + 'FIPS/'
+	for i in range(0,nd):
+		ee = os.path.isfile(path + 'EDR/' + 'FIPS-EDR-{:08d}.bin'.format(dates[i]))
+		ce = os.path.isfile(path + 'CDR/' + 'FIPS-CDR-{:08d}.bin'.format(dates[i]))
+		se = os.path.isfile(path + 'ESPEC/' + 'FIPS-ESPEC-{:08d}.bin'.format(dates[i]))
+		ne = os.path.isfile(path + 'NTP/' + 'FIPS-NTP-{:08d}.bin'.format(dates[i]))
+		exists[i] = ee | ce | se | ne
+	use = np.where(exists)[0]
+	dates = np.array(dates)[use]
+	nd = np.size(dates)
+	if StopI is None:
+		StopI = nd
+	else:
+		StopI = np.min([StopI,nd])
+				
+	#loop through each date
+	for i in range(StartI,StopI):
+		print('Combining Date {0} of {1} ({2})'.format(i+1,nd,dates[i]),flush=True)
+		_Combine10sDateSpecies(dates[i],'H',Verbose,Overwrite)
+
 	
 			
-def _Combine60sDateSpecies(Date,Species='H'):
+def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
 	'''
 	Combines the relevant files for a given species on a given date.
 	
@@ -96,6 +148,10 @@ def _Combine60sDateSpecies(Date,Species='H'):
 	dtype = Globals.dtype60s
 	fname = OutPath + '{:08d}.bin'.format(Date)
 	
+	if os.path.isfile(fname) and not Overwrite:
+		print("File {:s} exists".format(fname))
+		return
+		
 	#read in the four data files (if they exist)
 	dS = ReadFIPS(Date,'espec')
 	dN = ReadFIPS(Date,'ntp')
@@ -183,7 +239,8 @@ def _Combine60sDateSpecies(Date,Species='H'):
 	
 	#loop through groups
 	for i in range(0,n):
-		print('\rCopying data {:f}%'.format(100.0*(i+1)/n),end='')
+		if Verbose:
+			print('\rCopying data {:f}%'.format(100.0*(i+1)/n),end='')
 		#get the METS from ESPEC first, the rest have to match this!
 		useS = np.where((dS.Index >= StartInd[i]) & (dS.Index <= StopInd[i]))[0]
 		METS = dS.MET[useS]
@@ -252,7 +309,8 @@ def _Combine60sDateSpecies(Date,Species='H'):
 			out.p[i] = dN[useN[0]].p
 			out.HasNTP[i] = True
 			out.NTPQuality[i] = dN[useN[0]].Quality
-	print()
+	if Verbose:
+		print()
 	
 	#This following bit will only work for protons currently, for all other ions Eff = 1
 	if Species == 'H':
@@ -261,7 +319,8 @@ def _Combine60sDateSpecies(Date,Species='H'):
 		Tau0 = np.array([95]*60 + [0]*4)/1000.0	
 		Eff = np.zeros((n,64),dtype='float32')
 		for i in range(0,n):
-			print('\rCalculating Efficiencies {:f}%'.format(100.0*(i+1)/n),end='')
+			if Verbose:
+				print('\rCalculating Efficiencies {:f}%'.format(100.0*(i+1)/n),end='')
 			if out[i].ScanType == 0:
 				Ebins = eqbins0
 				Tau = Tau0
@@ -280,7 +339,8 @@ def _Combine60sDateSpecies(Date,Species='H'):
 		Tau0 = np.array([95]*60 + [0]*4)/1000.0	
 		Eff = np.zeros((n,64),dtype='float32')
 		for i in range(0,n):
-			print('\rCalculating Efficiencies {:f}%'.format(100.0*(i+1)/n),end='')
+			if Verbose:
+				print('\rCalculating Efficiencies {:f}%'.format(100.0*(i+1)/n),end='')
 			if out[i].ScanType == 0:
 				Ebins = eqbins0
 				Tau = Tau0
@@ -293,12 +353,14 @@ def _Combine60sDateSpecies(Date,Species='H'):
 		if np.size(Eff.shape) == 2:
 			Eff = np.nanmean(Eff,0)
 			Eff[np.isfinite(Eff) == False] = np.nan
+	if Verbose:
 		print()
 	
 	if Species == 'H':
 		#attempt to refit the spectrum with a kappa distribution
 		for i in range(0,n):
-			print('\rRefitting Spectra {:f}%'.format(100.0*(i+1)/n),end='')
+			if Verbose:
+				print('\rRefitting Spectra {:f}%'.format(100.0*(i+1)/n),end='')
 			#save efficiency
 			out[i].Efficiency[:] = Eff
 			
@@ -325,12 +387,13 @@ def _Combine60sDateSpecies(Date,Species='H'):
 				out[i].k = np.nan
 				out[i].pk = np.nan
 
-		print()
+		if Verbose:
+			print()
 	if out.size > 0:
 		RT.SaveRecarray(out,fname)	
 	return out
 					
-def _Combine10sDateSpecies(Date,Species='H'):
+def _Combine10sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
 	'''
 	Combines the relevant files for a given species on a given date.
 	
@@ -358,11 +421,16 @@ def _Combine10sDateSpecies(Date,Species='H'):
 	
 	
 	#get output dtype, file name and path
-	OutPath = Globals.MessPath+'FIPS/Combined/60s/{:s}/'.format(Species)
+	OutPath = Globals.MessPath+'FIPS/Combined/10s/{:s}/'.format(Species)
 	if not os.path.isdir(OutPath):
 		os.system('mkdir -pv '+OutPath)
-	dtype = Globals.dtype60s
+	dtype = Globals.dtype10s
 	fname = OutPath + '{:08d}.bin'.format(Date)
+	
+	if os.path.isfile(fname) and not Overwrite:
+		print("File {:s} exists".format(fname))
+		return
+		
 	
 	#read in the four data files (if they exist)
 	dS = ReadFIPS(Date,'espec')
@@ -380,7 +448,7 @@ def _Combine10sDateSpecies(Date,Species='H'):
 	if Species == 'H':
 		n = dC.size
 		MET = dC.MET
-		Index = dC.Index
+		Index = np.arange(dC.size)
 	else:
 		n = dS.size
 		MET = dS.MET
@@ -412,7 +480,8 @@ def _Combine10sDateSpecies(Date,Species='H'):
 	
 	#loop through groups
 	for i in range(0,n):
-		print('\rCopying data {:f}%'.format(100.0*(i+1)/n),end='')
+		if Verbose:
+			print('\rCopying data {:f}%'.format(100.0*(i+1)/n),end='')
 		#get the METS from ESPEC first, the rest have to match this!
 		if Species == 'H':
 			useS = np.where(dS.Index == Index[i])[0]
@@ -476,7 +545,8 @@ def _Combine10sDateSpecies(Date,Species='H'):
 			out.p[i] = dN[useN[0]].p
 			out.HasNTP[i] = True
 			out.NTPQuality[i] = dN[useN[0]].Quality
-	print()
+	if Verbose:
+		print()
 	
 	#This following bit will only work for protons currently, for all other ions Eff = 1
 	if Species == 'H':
@@ -485,7 +555,8 @@ def _Combine10sDateSpecies(Date,Species='H'):
 		Tau0 = np.array([95]*60 + [0]*4)/1000.0	
 		Eff = np.zeros((n,64),dtype='float32')
 		for i in range(0,n):
-			print('\rCalculating Efficiencies {:f}%'.format(100.0*(i+1)/n),end='')
+			if Verbose:
+				print('\rCalculating Efficiencies {:f}%'.format(100.0*(i+1)/n),end='')
 			if out[i].ScanType == 0:
 				Ebins = eqbins0
 				Tau = Tau0
@@ -493,7 +564,10 @@ def _Combine10sDateSpecies(Date,Species='H'):
 				Ebins = eqbins2
 				Tau = Tau2		
 			zero = np.where(out[i].Counts == 0)[0]
+
 			Eff[i] = _CalculateProtonEff(Ebins,Tau,out[i].Flux,out[i].Counts)
+			nf = np.where(np.isfinite(Eff[i]) == False)[0]
+			Eff[i][nf] = np.nan
 			Eff[i][zero] = np.nan
 		
 		if np.size(Eff.shape) == 2:
@@ -504,7 +578,8 @@ def _Combine10sDateSpecies(Date,Species='H'):
 		Tau0 = np.array([95]*60 + [0]*4)/1000.0	
 		Eff = np.zeros((n,64),dtype='float32')
 		for i in range(0,n):
-			print('\rCalculating Efficiencies {:f}%'.format(100.0*(i+1)/n),end='')
+			if Verbose:
+				print('\rCalculating Efficiencies {:f}%'.format(100.0*(i+1)/n),end='')
 			if out[i].ScanType == 0:
 				Ebins = eqbins0
 				Tau = Tau0
@@ -512,17 +587,21 @@ def _Combine10sDateSpecies(Date,Species='H'):
 				Ebins = eqbins2
 				Tau = Tau2		
 			zero = np.where(out[i].Counts == 0)[0]
+			nf = np.where(np.isfinite(Eff) == False)[0]
 			Eff[i] = Tau*1.0
 			Eff[i][zero] = np.nan
+			Eff[i][nf] = np.nan
 		if np.size(Eff.shape) == 2:
 			Eff = np.nanmean(Eff,0)
 			Eff[np.isfinite(Eff) == False] = np.nan
+	if Verbose:
 		print()
 	
 	if Species == 'H':
 		#attempt to refit the spectrum with a kappa distribution
 		for i in range(0,n):
-			print('\rRefitting Spectra {:f}%'.format(100.0*(i+1)/n),end='')
+			if Verbose:
+				print('\rRefitting Spectra {:f}%'.format(100.0*(i+1)/n),end='')
 			#save efficiency
 			out[i].Efficiency[:] = Eff
 			
@@ -549,7 +628,8 @@ def _Combine10sDateSpecies(Date,Species='H'):
 				out[i].k = np.nan
 				out[i].pk = np.nan
 
-		print()
+		if Verbose:
+			print()
 	if out.size > 0:
 		RT.SaveRecarray(out,fname)	
 	return out

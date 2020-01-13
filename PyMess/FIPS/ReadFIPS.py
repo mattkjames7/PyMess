@@ -41,7 +41,6 @@ def ReadFIPS(Date,Type='60'):
 	subdir,dtype,fpatt = fipsdict[Type]
 	
 	fname = Globals.MessPath + 'FIPS/' + subdir + fpatt.format(Date)
-
 	if not os.path.isfile(fname):
 		return np.recarray(0,dtype=dtype)
 		
