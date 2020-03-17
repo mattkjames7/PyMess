@@ -29,14 +29,16 @@ def ReadMagData(Date,Minute=False,res=None,Ab=None,DetectGaps=None):
 	'''
 	fname='{:08d}.bin'.format(Date)
 	if Minute == True:
-		path = Globals.MessPath+'MAG/Binary/Minute/'
+		path = Globals.MessPath+'MAG/Binary/MSO/Minute/'
 	else:
-		path = Globals.MessPath+'MAG/Binary/Full/'
+		path = Globals.MessPath+'MAG/Binary/MSO/Full/'
 
 	
 
-	dtype = [('Date','int32'),('ut','float32'),('Xmso','float32'),('Ymso','float32'),('Zmso','float32'),('Xmsm','float32'),('Ymsm','float32'),('Zmsm','float32'),
-				('Bx','float32'),('By','float32'),('Bz','float32')]	
+	dtype = [('Date','int32'),('ut','float32'),
+			('Xmso','float32'),('Ymso','float32'),('Zmso','float32'),
+			('Xmsm','float32'),('Ymsm','float32'),('Zmsm','float32'),
+			('Bx','float32'),('By','float32'),('Bz','float32')]	
 	
 	if os.path.isfile(path+fname) == False:
 		out = np.recarray(0,dtype=dtype)

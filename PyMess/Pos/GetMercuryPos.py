@@ -1,5 +1,6 @@
 from ._ReadMercuryPos import _ReadMercuryPos
 from .. import Globals
+import numpy as np
 
 def GetMercuryPos(Date=None):
 	'''

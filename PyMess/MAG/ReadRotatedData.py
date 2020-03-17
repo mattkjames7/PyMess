@@ -3,13 +3,17 @@ from RecarrayTools.ReadRecarray import ReadRecarray
 import os
 
 def ReadRotatedData(Date,Minute=False,res=None,DetectGaps=None,**kwargs):
+	'''
+	Read the data rotated into a coordinate system where Bx, By, Bz ==
+	Bpol, Btor, Bpar
 	
+	'''
 	if Minute:
-		path = os.getenv('MESSENGER_PATH')+'/MAG/Rotated/Minute/'
+		path = Globals.MessPath + '/MAG/Binary/Rotated/Minute/'
 	else:
-		path = os.getenv('MESSENGER_PATH')+'/MAG/Rotated/Full/'
-	fname = path + '{:08d}-bin'.format(Date)
-	dtype=[('ut','float32'),('Bpol','float32'),('Bphi','float32'),('Bpar','float32'),('Xmsm','float32'),('Ymsm','float32'),('Zmsm','float32')]
+		path = Globals.MessPath + '/MAG/Binary/Rotated/Full/'
+	fname = path + '{:08d}.bin'.format(Date)
+	dtype=[('Date','int32'),('ut','float32'),('Bx','float32'),('By','float32'),('Bz','float32'),('Xmsm','float32'),('Ymsm','float32'),('Zmsm','float32')]
 	data = ReadRecarray(fname,dtype)
 
 

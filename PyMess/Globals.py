@@ -1,6 +1,7 @@
 import os
 import numpy as np
 ModulePath = os.path.dirname(__file__)+'/'
+ModuleData = os.path.dirname(__file__)+'/__data/'
 try:
 	MessPath = os.getenv('TEST_MESSENGER_PATH')+'/'
 except:
@@ -21,6 +22,9 @@ BSData = None
 
 #SW times
 SWTimes = None
+
+#MSTimes
+MSTimes = None
 
 #MSH times
 MSHTimes = None

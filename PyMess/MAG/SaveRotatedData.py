@@ -3,6 +3,7 @@ from .MagRotatedData import MagRotatedData
 import RecarrayTools as RT
 import os
 from .. import Globals
+from .DataAvailability import DataAvailability
 
 def SaveRotatedData(Date,Minute=False,res=None,ModelParams=None,Ab=None,DetectGaps=None):
 	'''
@@ -33,7 +34,7 @@ def SaveRotatedData(Date,Minute=False,res=None,ModelParams=None,Ab=None,DetectGa
 		path = Globals.MessPath+'MAG/Binary/Rotated/Full/'
 	if not os.path.isdir(path):
 		os.system('mkdir -pv '+path)
-	fname = path + '{:08d}-bin'.format(Date)
+	fname = path + '{:08d}.bin'.format(Date)
 	data = MagRotatedData(Date,Minute,res,ModelParams,Ab,DetectGaps)
 	RT.SaveRecarray(data,fname)
 	
@@ -58,15 +59,9 @@ def SaveAllRotatedData(Minute=False,res=None,ModelParams=None,Ab=None,DetectGaps
 			smaller than this are interpolated over.
 
 	'''	
-	if Minute:
-		spath = Globals.MessPath+'MAG/Minute/'
-	else:
-		spath = Globals.MessPath+'MAG/Full/'
-	
-	files = np.array(os.listdir(spath))
-	nf = np.size(files)
-	files.sort()
+	dates = DataAvailability(Minute,Type='MSO')
+	nf = np.size(dates)
 	
 	for i in range(StartI,nf):
-		print('Converting File {0} of {1} ({2})'.format(i+1,nf,files[i]))
-		SaveRotatedData(np.int32(files[i][0:8]),Minute,res,ModelParams,Ab,DetectGaps)
+		print('Converting File {0} of {1} ({2})'.format(i+1,nf,dates[i]))
+		SaveRotatedData(dates[i],Minute,res,ModelParams,Ab,DetectGaps)

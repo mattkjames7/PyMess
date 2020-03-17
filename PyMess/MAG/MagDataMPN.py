@@ -91,9 +91,13 @@ def MagDataMPN(Date,Minute=False,res=None,Rsm=1.42,Ab=None):
 			ut = np.array([])
 			
 	n = np.size(ut)
-	dtype = [('ut','float32'),('BN','float32'),('BM','float32'),('BL','float32'),('Bx','float32'),('By','float32'),('Bz','float32'),('pN','float32'),('pM','float32'),('pL','float32'),
-			('xMP','float32'),('yMP','float32'),('zMP','float32'),('nx','float32'),('ny','float32'),('nz','float32'),('E','float32'),
-			('r','float32'),('phi','float32'),('Xmsm','float32'),('Ymsm','float32'),('Zmsm','float32')]
+	dtype = [('ut','float32'),('BN','float32'),('BM','float32'),('BL','float32'),
+			('Bx','float32'),('By','float32'),('Bz','float32'),
+			('pN','float32'),('pM','float32'),('pL','float32'),
+			('xMP','float32'),('yMP','float32'),('zMP','float32'),
+			('nx','float32'),('ny','float32'),('nz','float32'),
+			('E','float32'),('r','float32'),('phi','float32'),
+			('Xmsm','float32'),('Ymsm','float32'),('Zmsm','float32')]
 	
 	data = np.recarray(n,dtype=dtype)
 	if n == 0:

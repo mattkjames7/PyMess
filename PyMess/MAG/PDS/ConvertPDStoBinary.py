@@ -4,13 +4,13 @@ from .ReadPDSMAG import ReadPDSMAG
 from ... import Globals
 import RecarrayTools as RT
 import DateTimeTools as TT
-from scipy.interpolate import InterpolatedUnivariateSpline
+from scipy.interpolate import InterpolatedUnivariateSpline,interp1d
 import os
 
 def _ConvertPDS(PrevData,CurrData,NextData,date):
 	#create output path
-	binpath = Globals.MessPath+'MAG/Binary/Full/'
-	minpath = Globals.MessPath+'MAG/Binary/Minute/'
+	binpath = Globals.MessPath+'MAG/Binary/MSO/Full/'
+	minpath = Globals.MessPath+'MAG/Binary/MSO/Minute/'
 	if not os.path.isdir(binpath):
 		os.system('mkdir -pv '+binpath)
 	if not os.path.isdir(minpath):
@@ -36,10 +36,11 @@ def _ConvertPDS(PrevData,CurrData,NextData,date):
 	
 	#now to find the minute average data, which will be calculated
 	#using half a minute of the previous days data
-	use = np.where((PrevData.Date == TT.MinusDay(date)) & (PrevData.ut >= 24.0 - 1.0/120.0))[0]
-	tmp = PrevData[use]
-	tmp.ut-=24.0
-	out = RT.JoinRecarray(tmp,out)
+	if not PrevData is None:
+		use = np.where((PrevData.Date == TT.MinusDay(date)) & (PrevData.ut >= 24.0 - 1.0/120.0))[0]
+		tmp = PrevData[use]
+		tmp.ut-=24.0
+		out = RT.JoinRecarray(tmp,out)
 			
 	#now to calculate the averages
 	minout = np.recarray(1440,dtype=out.dtype)
@@ -56,15 +57,24 @@ def _ConvertPDS(PrevData,CurrData,NextData,date):
 		
 	tags = ['Xmso','Ymso','Zmso','Xmsm','Ymsm','Zmsm']
 	for t in tags:
-		f = InterpolatedUnivariateSpline(out.ut,out[t])
+		#f = InterpolatedUnivariateSpline(out.ut,out[t])
+		f = interp1d(out.ut,out[t],bounds_error=False,fill_value='extrapolate',kind='cubic')
 		minout[t] = f(minout.ut)
 		
 	#save minute data
 	RT.SaveRecarray(minout,minpath+fname)	
 
-def ConvertPDSDate(Date):
+def ConvertPDSDate(Date,Overwrite=False):
 	#get the file list
 	files,dates = FindPDSFiles()
+
+	binpath = Globals.MessPath+'MAG/Binary/MSO/Full/'
+	minpath = Globals.MessPath+'MAG/Binary/MSO/Minute/'
+	fname = '{:08d}.bin'.format(Date)
+	
+	if os.path.isfile(binpath+fname) and os.path.isfile(minpath+fname) and not Overwrite:
+		print('Files exist')
+		return
 	
 	use = np.where(dates == Date)[0]
 	usep = np.where(dates == TT.MinusDay(Date))[0]
@@ -99,8 +109,8 @@ def ConvertPDStoBinary():
 	n = files.size
 	
 	#create output path
-	binpath = Globals.MessPath+'MAG/Binary/Full/'
-	minpath = Globals.MessPath+'MAG/Binary/Minute/'
+	binpath = Globals.MessPath+'MAG/Binary/MSO/Full/'
+	minpath = Globals.MessPath+'MAG/Binary/MSO/Minute/'
 	if not os.path.isdir(binpath):
 		os.system('mkdir -pv '+binpath)
 	if not os.path.isdir(minpath):
@@ -164,11 +174,11 @@ def ConvertPDStoBinary():
 			
 			use = np.where((out.ut >= ut0) & (out.ut < ut1))[0]
 			for t in tags:
-				minout[t] = np.nanmean(out[t][use])
+				minout[t][j] = np.nanmean(out[t][use])
 			
 		tags = ['Xmso','Ymso','Zmso','Xmsm','Ymsm','Zmsm']
 		for t in tags:
-			f = InterpolatedUnivariateSpline(out.ut,out[t])
+			f = interp1d(out.ut,out[t],bounds_error=False,fill_value='extrapolate',kind='cubic')
 			minout[t] = f(minout.ut)
 			
 		#save minute data

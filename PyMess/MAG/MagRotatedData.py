@@ -57,7 +57,8 @@ def MagRotatedData(Date,Minute=False,res=None,ModelParams=None,Ab=None,DetectGap
 	b3 = tz
 
 	#returned coordinates will be in aberrated coords
-	dtype=[('Date','int32'),('ut','float32'),('Bpol','float32'),('Btor','float32'),('Bpar','float32'),('Xmsm','float32'),('Ymsm','float32'),('Zmsm','float32')]
+	# Bx,By,Bz == Bpol, Btor, Bpar
+	dtype=[('Date','int32'),('ut','float32'),('Bx','float32'),('By','float32'),('Bz','float32'),('Xmsm','float32'),('Ymsm','float32'),('Zmsm','float32')]
 	data = np.recarray(t.size,dtype=dtype)
 	data.ut = t
 	data.Bpol = b1
