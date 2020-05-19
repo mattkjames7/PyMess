@@ -93,34 +93,60 @@ class Constants(object):
 	kB = 1.38064852e-23
 
 #FIPS dtypes
-dtype60s = [('Date','int32'),('ut','float32'),('MET','float64'),
-			('StartMET','float64'),('StopMET','float64'),
-			('StartIndex','int32'),('StopIndex','int32'),
-			('ScanType','int8'),
-			('NSpec','int32'),('Tau','float32'),
-			('CDRQuality','int16',(7,)),('NTPQuality','int16'),
-			('Ion','U3'),('HasNTP','bool8'),('EQBins','float32',(64,)),
-			('Efficiency','float32',(64,)),('VBins','float32',(64,)),
-			('Counts','float32',(64,)),('Flux','float32',(64,)),('PSD','float32',(64,)),
-			('n','float32'),('t','float32'),('p','float32'),
-			('nk','float32'),('tk','float32'),('pk','float32'),('k','float32')]
+dtype60s = [('Date','int32'),				#Date in format yyyymmdd
+			('ut','float32'),				#UT time since begining of day in hours
+			('MET','float64'),				#Mission elapsed time
+			('StartMET','float64'),			#Start MET of observation
+			('StopMET','float64'),			#End MET of observation
+			('StartIndex','int32'),			#Start index
+			('StopIndex','int32'),			#end index
+			('ScanType','int8'),			#Scan Type is either 0 or 2 to determine energy bin ranges
+			('NSpec','int32'),				#Number of spectra combined 
+			('Tau','float32'),				#Tau parameter - dwell time on each energy bin
+			('CDRQuality','int16',(7,)),	#CDR data quality flag (0 = good, I think)
+			('NTPQuality','int16'),			#NTP data quality flag (0 = good)
+			('Ion','U3'),					#Species of ion
+			('HasNTP','bool8'),				#Whether this spectrum has an NTP fit
+			('EQBins','float32',(64,)),		#Energy/charge bins in keV/Q
+			('Efficiency','float32',(64,)),	#Efficiency parameter (rho) - carful, I worked backwards to get this so it may be wrong!
+			('VBins','float32',(64,)),		#Velocity bins in km/s
+			('Counts','float32',(64,)),		#Measured counts for each energy bin
+			('Flux','float32',(64,)),		#Differential energy flux in (keV/e)^-1 s^-1 cm^-2 sr^-1 calculated from the count rate in  (this is directly taken from PDS, I didn't do this)
+			('PSD','float32',(64,)),		#Phase space density in s^3 m^-6 calculated from the flux
+			('n','float32'),				#Maxwellian density in cm^-3 from NTP
+			('t','float32'),				#Maxwellian temperature in MK from NTP
+			('p','float32'),				#Maxwellian pressure in nPa from NTP
+			('nk','float32'),				#Kappa density in cm^-3 from James et al 2020
+			('tk','float32'),				#Kappa temperature in MK from James et al 2020
+			('pk','float32'),				#Kappa pressure in nPa from James et al 2020
+			('k','float32'),					#Kappa parameter from James et al 2020
+			('SplitProb','float32',(8,)),	#ANN output probabilities that each section is good
+			('Prob','float32'),				#ANN probability that whole spectrum is good fit
+			('SplitClass','int8',(8,)),		#Classification of each section (1 = good, 0 = bad, -1 = not classififed)
+			('Class','int8')]				#Classification of whole spectrum (1 = good, 0 = bad, -1 = not classified)
 
-dtype10s = [('Date','int32'),('ut','float32'),('MET','float64'),
+dtype10s = [('Date','int32'),
+			('ut','float32'),
+			('MET','float64'),
 			('StartIndex','int32'),
 			('ScanType','int8'),
 			('Tau','float32'),
-			('CDRQuality','int16'),('NTPQuality','int16'),
-			('Ion','U3'),('HasNTP','bool8'),('EQBins','float32',(64,)),
-			('Efficiency','float32',(64,)),('VBins','float32',(64,)),
-			('Counts','float32',(64,)),('Flux','float32',(64,)),('PSD','float32',(64,)),
-			('n','float32'),('t','float32'),('p','float32'),
-			('nk','float32'),('tk','float32'),('pk','float32'),('k','float32')]
+			('CDRQuality','int16'),
+			('NTPQuality','int16'),
+			('Ion','U3'),
+			('HasNTP','bool8'),
+			('EQBins','float32',(64,)),
+			('Efficiency','float32',(64,)),
+			('VBins','float32',(64,)),
+			('Counts','float32',(64,)),
+			('Flux','float32',(64,)),
+			('PSD','float32',(64,)),
+			('n','float32'),
+			('t','float32'),
+			('p','float32'),
+			('nk','float32'),
+			('tk','float32'),
+			('pk','float32'),
+			('k','float32')]
 			
-fips60sdtype = [('Date','int32'),('ut','float32'),('MET','float64'),('StartMET','float64'),('StopMET','float64'),('StartIndex','int32'),('StopIndex','int32'),('ScanType','int8'),
-				('NSpec','int32'),('Tau','float32'),('CDRQuality','int16',(7,)),('Ion','U3',(5,)),('Mass','float32',(5,)),('HasNTP','bool8',(5,)),('EQBins','float32',(64,)),
-				('Efficiency','float32',(5,64)),('VBins','float32',(5,64)),('Counts','float32',(5,64)),('Flux','float32',(5,64,)),('PSD','float32',(5,64,)),
-				('n','float32',(5,)),('t','float32',(5,)),('p','float32',(5,)),('nk','float32',(5,)),('tk','float32',(5,)),('pk','float32',(5,)),('k','float32',(5,))]
-fips10sdtype = [('Date','int32'),('ut','float32'),('MET','float64'),('StartMET','float64'),('StopMET','float64'),('StartIndex','int32'),('StopIndex','int32'),('ScanType','int8'),
-				('NSpec','int32'),('Tau','float32'),('CDRQuality','int16',(7,)),('Ion','U3',(5,)),('Mass','float32',(5,)),('HasNTP','bool8',(5,)),('EQBins','float32',(64,)),
-				('Efficiency','float32',(5,64)),('VBins','float32',(5,64)),('Counts','float32',(5,64)),('Flux','float32',(5,64,)),('PSD','float32',(5,64,)),
-				('n','float32',(5,)),('t','float32',(5,)),('p','float32',(5,)),('nk','float32',(5,)),('tk','float32',(5,)),('pk','float32',(5,)),('k','float32',(5,))]
+

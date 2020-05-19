@@ -16,16 +16,30 @@ dtypentp = [('StartIndex', '>i4'), ('StopIndex', '>i4'), ('StartMET', '>f8'),
 			('StopMET', '>f8'), ('TimeRes', '>U16'), ('Ion', '>U16'), 
 			('n', '>f8'), ('t', '>f8'), ('p', '>f8'), ('nErr', '>f8'), 
 			('tErr', '>f8'), ('pErr', '>f8'), ('Quality', '>i4')]
-			
+
+dtypeann = [	('Date','int32'),
+				('ut','float32'),
+				('nk','float32'),
+				('tk','float32'),
+				('K','float32'),
+				('SplitProb','float32',(8,)),
+				('Prob','float32'),
+				('SplitClass','int8',(8,)),
+				('Class','int8')]			
 			
 fipsdict = {'edr':		('EDR/',dtypeedr,'FIPS-EDR-{:08d}.bin'),
 			'cdr':		('CDR/',dtypecdr,'FIPS-CDR-{:08d}.bin'),
 			'espec':	('ESPEC/',dtypeespec,'FIPS-ESPEC-{:08d}.bin'),
 			'ntp':		('NTP/',dtypentp,'FIPS-NTP-{:08d}.bin'),
-			'60':		('Combined/60s/',Globals.fips60sdtype,'FIPS-60s-{:08d}.bin'),
-			'10':		('Combined/10s/',Globals.fips10sdtype,'FIPS-10s-{:08d}.bin'),}
+			'ann':		('ANN/bin/',dtypeann,'{:08d}.bin'),
+			'60H':		('Combined/60s/H/',Globals.dtype60s,'{:08d}.bin'),
+			'60He':		('Combined/60s/He/',Globals.dtype60s,'{:08d}.bin'),
+			'60He2':		('Combined/60s/He2',Globals.dtype60s,'{:08d}.bin'),
+			'60Na':		('Combined/60s/Na/',Globals.dtype60s,'{:08d}.bin'),
+			'60O':		('Combined/60s/O/',Globals.dtype60s,'{:08d}.bin'),
+			'10H':		('Combined/10s/H/',Globals.dtype10s,'{:08d}.bin'),}
 			
-def ReadFIPS(Date,Type='60'):
+def ReadData(Date,Type='60H',Length=False):
 	'''
 	Reads FIPS data files.
 	
@@ -33,6 +47,9 @@ def ReadFIPS(Date,Type='60'):
 		Date: 32-bit integer date in the format yyyymmdd.
 		Type: String - 'edr'|'cdr'|'espec'|'ntp'|'60'|'10',	default is 
 			'60' which corresponds to the 60s combined data.
+	Length : bool
+		If True, then only the length of the data file is returned, 
+		otherwise the whole file is read in.
 		
 	Returns:
 		numpy.recarray
@@ -42,7 +59,17 @@ def ReadFIPS(Date,Type='60'):
 	
 	fname = Globals.MessPath + 'FIPS/' + subdir + fpatt.format(Date)
 	if not os.path.isfile(fname):
-		return np.recarray(0,dtype=dtype)
-		
-	return RT.ReadRecarray(fname,dtype)
+		print('File not found: '+fname)
+		if Length:
+			return 0
+		else:
+			return np.recarray(0,dtype=dtype)
+	
+	if Length:
+		f = open(fname,'rb')
+		l = np.fromfile(f,dtype='int32',count=1)[0]
+		f.close()
+		return l
+	else:
+		return RT.ReadRecarray(fname,dtype)
 	
