@@ -3,7 +3,7 @@ import PyFileIO as pf
 from .. import Globals
 import DateTimeTools as TT
 
-def _ReadResList():
+def _ReadResList()
 	'''
 	This function will return a numpy.recarray which lists the 
 	approximate time resolutions of the MAG data between Date0,ut0 and

@@ -1,5 +1,5 @@
 import numpy as np
-from .ReadFIPS import ReadFIPS
+from .ReadData import ReadData
 from .. import Globals
 import DateTimeTools as TT
 from scipy import stats

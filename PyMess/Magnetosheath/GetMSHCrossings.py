@@ -2,7 +2,7 @@ from .. import Globals
 from ._ReadMSHCrossings import _ReadMSHCrossings
 
 
-def GetMSHCrossings():
+def GetMSHCrossings(Date=None):
 	
 	if Globals.MSHTimes is None:
 		Globals.MSHTimes = _ReadMSHCrossings()

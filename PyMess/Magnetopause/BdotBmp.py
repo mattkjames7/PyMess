@@ -1,6 +1,6 @@
 import numpy as np
 import KT17 as kt17
-from ..MAG.ReadMagData import ReadMagData
+from ..MAG._ReadMSM import _ReadMSM
 from scipy.interpolate import InterpolatedUnivariateSpline
 from .NearestMPPoint import NearestMP3d
 
@@ -29,7 +29,7 @@ def BdotBmp(Date,ut=[0.0,24.0],Minute=False,res=None,Ab=None,indata=None):
 	'''
 	#load mag data
 	if indata is None:
-		data = ReadMagData(Date,Minute,res,Ab=Ab)
+		data = _ReadMSM(Date,Minute,res=res,Ab=Ab)
 	else:
 		data = indata.copy()
 	use = np.where((data.ut >= ut[0]) & (data.ut <= ut[1]))[0]

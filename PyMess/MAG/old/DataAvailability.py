@@ -1,7 +1,6 @@
 import numpy as np
 from .. import Globals
 from ..Tools.ListFiles import ListFiles
-from . import MagGlobals
 
 def DataAvailability(Minute=False,Type='MSO'):
 	'''
@@ -12,7 +11,7 @@ def DataAvailability(Minute=False,Type='MSO'):
 	Minute : boolean
 		If True - check the minute resolution data
 	Type : string
-		'MSO'|'Dip'|'MPN' for normal data in MSO coords, rotated
+		'MSO'|'Rotated'|'MPN' for normal data in MSO coords, rotated
 		into poloidal, toroidal and parallel, or magnetopause normal
 		coordinates, respected.
 		
@@ -22,12 +21,22 @@ def DataAvailability(Minute=False,Type='MSO'):
 	
 	'''
 	#get the path to search in
-	path = MagGlobals.paths[Type]
-	if Minute:
-		path += 'Minute/'
-	else:
-		path += 'Full/'
-	
+	if Type == 'MSO':
+		if Minute == True:
+			path = Globals.MessPath+'MAG/Binary/MSO/Minute/'
+		else:
+			path = Globals.MessPath+'MAG/Binary/MSO/Full/'
+	elif Type == 'Rotated':
+		if Minute:
+			path = Globals.MessPath+'MAG/Binary/Rotated/Minute/'
+		else:
+			path = Globals.MessPath+'MAG/Binary/Rotated/Full/'	
+	elif Type == 'MPN':
+		if Minute:
+			path = Globals.MessPath+'MAG/Binary/MPN/Minute/'
+		else:
+			path = Globals.MessPath+'MAG/Binary/MPN/Full/'
+
 	#scan for files
 	_,fnames = ListFiles(path,ReturnNames=True)
 	

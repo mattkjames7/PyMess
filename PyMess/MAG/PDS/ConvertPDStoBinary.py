@@ -6,11 +6,12 @@ import RecarrayTools as RT
 import DateTimeTools as TT
 from scipy.interpolate import InterpolatedUnivariateSpline,interp1d
 import os
+from .. import MagGlobals
 
 def _ConvertPDS(PrevData,CurrData,NextData,date):
 	#create output path
-	binpath = Globals.MessPath+'MAG/Binary/MSO/Full/'
-	minpath = Globals.MessPath+'MAG/Binary/MSO/Minute/'
+	binpath = MagGlobals.paths['MSM'] + 'Full/'
+	minpath = MagGlobals.paths['MSM'] + 'Minute/'
 	if not os.path.isdir(binpath):
 		os.system('mkdir -pv '+binpath)
 	if not os.path.isdir(minpath):
@@ -55,9 +56,8 @@ def _ConvertPDS(PrevData,CurrData,NextData,date):
 		for t in tags:
 			minout[t][j] = np.nanmean(out[t][use])
 		
-	tags = ['Xmso','Ymso','Zmso','Xmsm','Ymsm','Zmsm']
+	tags = ['Xmso','Ymso','Zmso','Xmsm','Ymsm','Zmsm','utc']
 	for t in tags:
-		#f = InterpolatedUnivariateSpline(out.ut,out[t])
 		f = interp1d(out.ut,out[t],bounds_error=False,fill_value='extrapolate',kind='cubic')
 		minout[t] = f(minout.ut)
 		
@@ -68,8 +68,8 @@ def ConvertPDSDate(Date,Overwrite=False):
 	#get the file list
 	files,dates = FindPDSFiles()
 
-	binpath = Globals.MessPath+'MAG/Binary/MSO/Full/'
-	minpath = Globals.MessPath+'MAG/Binary/MSO/Minute/'
+	binpath = MagGlobals.paths['MSM'] + 'Full/'
+	minpath = MagGlobals.paths['MSM'] + 'Minute/'
 	fname = '{:08d}.bin'.format(Date)
 	
 	if os.path.isfile(binpath+fname) and os.path.isfile(minpath+fname) and not Overwrite:
@@ -109,8 +109,8 @@ def ConvertPDStoBinary():
 	n = files.size
 	
 	#create output path
-	binpath = Globals.MessPath+'MAG/Binary/MSO/Full/'
-	minpath = Globals.MessPath+'MAG/Binary/MSO/Minute/'
+	binpath = MagGlobals.paths['MSM'] + 'Full/'
+	minpath = MagGlobals.paths['MSM'] + 'Minute/'
 	if not os.path.isdir(binpath):
 		os.system('mkdir -pv '+binpath)
 	if not os.path.isdir(minpath):
@@ -176,7 +176,7 @@ def ConvertPDStoBinary():
 			for t in tags:
 				minout[t][j] = np.nanmean(out[t][use])
 			
-		tags = ['Xmso','Ymso','Zmso','Xmsm','Ymsm','Zmsm']
+		tags = ['Xmso','Ymso','Zmso','Xmsm','Ymsm','Zmsm','utc']
 		for t in tags:
 			f = interp1d(out.ut,out[t],bounds_error=False,fill_value='extrapolate',kind='cubic')
 			minout[t] = f(minout.ut)
