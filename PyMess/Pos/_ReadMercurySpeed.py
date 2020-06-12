@@ -8,6 +8,6 @@ def _ReadMercurySpeed():
 	'''
 	
 	fname = Globals.ModulePath +'/__data/MercurySpeed.dat'
-	data = pf.ReadASCIIData(fname,True,dtype=[('Date','int32'),('v','float32')])
+	data = pf.ReadASCIIData(fname,Header=True,dtype=[('Date','int32'),('utc','float64'),('v','float32')])
 	
 	return data
