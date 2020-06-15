@@ -8,6 +8,10 @@ from ..Tools.InArray import InArray
 import os
 import RecarrayTools as RT
 from ..Tools.MatchUT import MatchUT
+from ..Tools.ContUT import ContUT
+from ..Pos.GetRegion import GetRegion 
+from ..Pos.GetPosition import GetPosition
+from scipy.interpolate import interp1d
 
 def _CalculateProtonEff(Ebins,Tau,Flux,Counts):
 	'''
@@ -156,12 +160,12 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 		return
 		
 	#read in the four data files (if they exist)
-	dS = ReadFIPS(Date,'espec')
-	dN = ReadFIPS(Date,'ntp')
-	dE = ReadFIPS(Date,'edr')
-	dC = ReadFIPS(Date,'cdr')
+	dS = ReadData(Date,'espec')
+	dN = ReadData(Date,'ntp')
+	dE = ReadData(Date,'edr')
+	dC = ReadData(Date,'cdr')
 	if Species == 'H':
-		dA = ReadFIPS(Date,'ann')
+		dA = ReadData(Date,'ann')
 	else:
 		dA = None
 
@@ -219,6 +223,9 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 	
 	#now we should have grouped all of the data, time to create the output array
 	n = np.size(StartMET)
+	if n == 0:
+		print('no data')
+		return
 	out = np.recarray(n,dtype=dtype)
 
 	#save some ion info
@@ -234,6 +241,26 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 	out.ut = (out.MET-met0)/3600.0
 	out.StartIndex = StartInd
 	out.StopIndex = StopInd
+	
+	#continuous ut
+	out.utc = ContUT(out.Date,out.ut)
+	
+	#position
+	pos = GetPosition(Date)
+	if pos.size > 0:
+		fx = interp1d(pos.ut,pos.x,kind='cubic',bounds_error=False,fill_value='extrapolate')
+		fy = interp1d(pos.ut,pos.y,kind='cubic',bounds_error=False,fill_value='extrapolate')
+		fz = interp1d(pos.ut,pos.z,kind='cubic',bounds_error=False,fill_value='extrapolate')
+		out.x = fx(out.ut)
+		out.y = fy(out.ut)
+		out.z = fz(out.ut)
+	else:
+		pos.x = np.nan
+		pos.y = np.nan
+		pos.z = np.nan
+		
+	#location
+	out.Loc = GetRegion(out.Date,out.ut,out.utc,Verbose=False)
 	
 
 	#set default CDR quality flag
@@ -475,10 +502,10 @@ def _Combine10sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
 		
 	
 	#read in the four data files (if they exist)
-	dS = ReadFIPS(Date,'espec')
-	dN = ReadFIPS(Date,'ntp')
-	dE = ReadFIPS(Date,'edr')
-	dC = ReadFIPS(Date,'cdr')
+	dS = ReadData(Date,'espec')
+	dN = ReadData(Date,'ntp')
+	dE = ReadData(Date,'edr')
+	dC = ReadData(Date,'cdr')
 
 
 	#check that there are any data points:
@@ -511,6 +538,28 @@ def _Combine10sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
 	out.Index = Index
 	out.MET = MET
 	out.ut = (out.MET-met0)/3600.0
+
+	#continuous ut
+	out.utc = ContUT(out.Date,out.ut)
+	
+	#position
+	pos = GetPosition(Date)
+	if pos.size > 0:
+		fx = interp1d(pos.ut,pos.x,kind='cubic',bounds_error=False,fill_value='extrapolate')
+		fy = interp1d(pos.ut,pos.y,kind='cubic',bounds_error=False,fill_value='extrapolate')
+		fz = interp1d(pos.ut,pos.z,kind='cubic',bounds_error=False,fill_value='extrapolate')
+		out.x = fx(out.ut)
+		out.y = fy(out.ut)
+		out.z = fz(out.ut)
+	else:
+		pos.x = np.nan
+		pos.y = np.nan
+		pos.z = np.nan
+	
+	#location
+	out.Loc = GetRegion(out.Date,out.ut,out.utc,Verbose=False)
+	
+
 	
 	#set default CDR quality flag
 	#Normally 0 = good, 1 = bad, here -1 = not present

@@ -19,6 +19,7 @@ MagRes = None
 #Magnetopause and bow shock crossings
 MPData = None
 BSData = None
+Boundaries = None
 
 #SW times
 SWTimes = None
@@ -95,6 +96,11 @@ class Constants(object):
 #FIPS dtypes
 dtype60s = [('Date','int32'),				#Date in format yyyymmdd
 			('ut','float32'),				#UT time since begining of day in hours
+			('utc','float64'),				#continuous time
+			('x','float32'),				#x MSM
+			('y','float32'),				#y MSM
+			('z','float32'),				#z MSM
+			('Loc','U2'),					#Location
 			('MET','float64'),				#Mission elapsed time
 			('StartMET','float64'),			#Start MET of observation
 			('StopMET','float64'),			#End MET of observation
@@ -127,6 +133,11 @@ dtype60s = [('Date','int32'),				#Date in format yyyymmdd
 
 dtype10s = [('Date','int32'),
 			('ut','float32'),
+			('utc','float64'),				#continuous time
+			('x','float32'),				#x MSM
+			('y','float32'),				#y MSM
+			('z','float32'),				#z MSM
+			('Loc','U2'),					#Location
 			('MET','float64'),
 			('StartIndex','int32'),
 			('ScanType','int8'),

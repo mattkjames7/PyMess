@@ -21,7 +21,8 @@ msmdtype = [('Date','int32'),
 			('Zmsm','float32'),
 			('Bx','float32'),
 			('By','float32'),
-			('Bz','float32')]	
+			('Bz','float32'),
+			('Loc','U2')]	
 			
 mpndtype = [('Date','float32'),
 			('ut','float32'),
@@ -43,7 +44,8 @@ mpndtype = [('Date','float32'),
 			('phi','float32'),
 			('Xmsm','float32'),
 			('Ymsm','float32'),
-			('Zmsm','float32')]
+			('Zmsm','float32'),
+			('Loc','U2')]
 
 
 dipdtype=[	('Date','int32'),
@@ -54,7 +56,8 @@ dipdtype=[	('Date','int32'),
 			('Bpar','float32'),
 			('Xmsm','float32'),
 			('Ymsm','float32'),
-			('Zmsm','float32')]
+			('Zmsm','float32'),
+			('Loc','U2')]
 
 
 dtypes = {	'Dip': dipdtype,

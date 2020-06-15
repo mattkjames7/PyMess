@@ -3,6 +3,7 @@ import PyFileIO as pf
 import DateTimeTools as TT
 from .. import MagGlobals
 from ...Tools.ContUT import ContUT
+from ...Pos.GetRegion import GetRegion
 
 def ReadPDSMAG(fname):
 	'''
@@ -22,7 +23,8 @@ def ReadPDSMAG(fname):
 					('Zmso','float32'),
 					('Bx','float32'),
 					('By','float32'),
-					('Bz','float32')]
+					('Bz','float32'),
+					('Loc','U2')]
 					
 	data = pf.ReadASCIIData(fname,False,dtype=pdsdtype)
 	
@@ -43,5 +45,6 @@ def ReadPDSMAG(fname):
 	out.Bx = data.Bx
 	out.By = data.By
 	out.Bz = data.Bz
+	out.Loc = GetRegion(out.Date,out.ut,out.utc,Verbose=False)
 
 	return out

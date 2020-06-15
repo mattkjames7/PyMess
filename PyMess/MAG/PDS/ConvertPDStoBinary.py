@@ -7,6 +7,7 @@ import DateTimeTools as TT
 from scipy.interpolate import InterpolatedUnivariateSpline,interp1d
 import os
 from .. import MagGlobals
+from ...Pos.GetRegion import GetRegion
 
 def _ConvertPDS(PrevData,CurrData,NextData,date):
 	#create output path
@@ -60,7 +61,8 @@ def _ConvertPDS(PrevData,CurrData,NextData,date):
 	for t in tags:
 		f = interp1d(out.ut,out[t],bounds_error=False,fill_value='extrapolate',kind='cubic')
 		minout[t] = f(minout.ut)
-		
+	minout.Loc = GetRegion(minout.Date,minout.ut,minout.utc,Verbose=False)
+	
 	#save minute data
 	RT.SaveRecarray(minout,minpath+fname)	
 
@@ -180,7 +182,8 @@ def ConvertPDStoBinary():
 		for t in tags:
 			f = interp1d(out.ut,out[t],bounds_error=False,fill_value='extrapolate',kind='cubic')
 			minout[t] = f(minout.ut)
-			
+		minout.Loc = GetRegion(minout.Date,minout.ut,minout.utc,Verbose=False)
+		
 		#save minute data
 		RT.SaveRecarray(minout,minpath+fname)
 		

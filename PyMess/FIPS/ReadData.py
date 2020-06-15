@@ -34,7 +34,7 @@ fipsdict = {'edr':		('EDR/',dtypeedr,'FIPS-EDR-{:08d}.bin'),
 			'ann':		('ANN/bin/',dtypeann,'{:08d}.bin'),
 			'60H':		('Combined/60s/H/',Globals.dtype60s,'{:08d}.bin'),
 			'60He':		('Combined/60s/He/',Globals.dtype60s,'{:08d}.bin'),
-			'60He2':		('Combined/60s/He2',Globals.dtype60s,'{:08d}.bin'),
+			'60He2':	('Combined/60s/He2',Globals.dtype60s,'{:08d}.bin'),
 			'60Na':		('Combined/60s/Na/',Globals.dtype60s,'{:08d}.bin'),
 			'60O':		('Combined/60s/O/',Globals.dtype60s,'{:08d}.bin'),
 			'10H':		('Combined/10s/H/',Globals.dtype10s,'{:08d}.bin'),}
@@ -45,8 +45,9 @@ def ReadData(Date,Type='60H',Length=False):
 	
 	Inputs:
 		Date: 32-bit integer date in the format yyyymmdd.
-		Type: String - 'edr'|'cdr'|'espec'|'ntp'|'60'|'10',	default is 
-			'60' which corresponds to the 60s combined data.
+		Type: String - 'edr'|'cdr'|'espec'|'ntp'|'ann'|'60H'|'60He'|
+			'60He2'|'60Na'|'60O'|'10H',	default is '60H' which 
+			corresponds to the 60s combined data.
 	Length : bool
 		If True, then only the length of the data file is returned, 
 		otherwise the whole file is read in.
