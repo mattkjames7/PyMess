@@ -46,18 +46,23 @@ def MinimizeMPDist(xin,yin,Rss=1.42,Alpha=0.5):
 		y = np.array([yin])
 	else:
 		x = np.array(xin)
-		y = np.array(yin)		
+		y = np.array(yin)	
+		
+	if np.size(Rss) == 1:
+		rss = np.array([Rss])
+	else:
+		rss = np.array(Rss)	
 	
 	n = np.size(x)
 	s = np.zeros(n,dtype='bool')
 	E = np.zeros(n,dtype='float32')
 	r = np.zeros(n,dtype='float32')
 	for i in range(0,n):
-		res = minimize(_D2,0.0,args=(Rss,Alpha,x[i],y[i]))
+		res = minimize(_D2,0.0,args=(rss[i],Alpha,x[i],y[i]))
 	
 		if res.success:
 			E[i] = res.x
-			r[i] = Rss*(2.0/(1.0 + np.cos(E[i])))**Alpha
+			r[i] = rss[i]*(2.0/(1.0 + np.cos(E[i])))**Alpha
 			s[i] = True
 		else:
 			E[i] = np.nan

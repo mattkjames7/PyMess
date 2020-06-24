@@ -15,7 +15,12 @@ def _ReadPosition():
 	'''
 
 	fname = Globals.ModulePath+'__data/MessPosMSM.bin'
-	dtype = [('Date','int32'),('ut','float32'),('x','float32'),('y','float32'),('z','float32')]
+	dtype = [	('Date','int32'),
+				('ut','float32'),
+				('utc','float64'),
+				('x','float32'),
+				('y','float32'),
+				('z','float32')]	
 	if not os.path.isfile(fname):
 		return np.recarray(0,dtype=dtype)
 	return pf.ReadRecarray(fname,dtype)
