@@ -4,3 +4,7 @@ from .ReadData import ReadData
 from . import ANN
 from .GetData import GetData
 from .DataAvailability import DataAvailability
+from .FitMaxwellianDist import FitMaxwellianDist,FitMaxwellianDistCts
+from .FitKappaDist import FitKappaDist,FitKappaDistCts
+from .MaxwellBoltzmannDist import MaxwellBoltzmannDist,MaxwellBoltzmannDistCts
+from .KappaDist import KappaDist,KappaDistCts

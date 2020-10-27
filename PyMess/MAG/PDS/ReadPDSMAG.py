@@ -33,7 +33,7 @@ def ReadPDSMAG(fname):
 	n = data.size
 	out = np.recarray(n,dtype)
 	
-	out.Date = np.array([TT.DayNotoDate(data.Year[i],data.DOY[i]) for i in range(0,n)])
+	out.Date = np.array([TT.DayNotoDate(data.Year[i],data.DOY[i])[0] for i in range(0,n)])
 	out.ut = np.float32(data.Hour) + np.float32(data.Min)/60.0 + np.float32(data.Sec)/3600.0
 	out.utc = ContUT(out.Date,out.ut)
 	out.Xmso = data.Xmso/2440.0
