@@ -6,7 +6,6 @@ import KT17 as kt17
 from .. import Globals
 import DateTimeTools as TT
 import RecarrayTools as RT
-from ..Tools.DTPlotLabel import DTPlotLabel
 from scipy.interpolate import interp1d,InterpolatedUnivariateSpline
 from ..Pos.GetAberrationAngle import GetAberrationAngle
 from ..Magnetopause.OverlayMP import OverlayMP
@@ -225,7 +224,7 @@ def PlotData(Date,ut=[0,24.0],Type='MSM',**kwargs):
 	ax=fig.gca()
 	
 	if kwargs.get('noxlabel',defargs['noxlabel']) == False:
-		DTPlotLabel(ax,UTc,Dates,Seconds=False,IncludeYear=False)
+		TT.DTPlotLabel(ax,Seconds=False,IncludeYear=False)
 		fig.xlabel('UT')
 	else:
 		ax.xaxis.set_visible(False)

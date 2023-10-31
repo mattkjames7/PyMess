@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 from .MSHCrossingMagData import MSHCrossingMagData
 from .. import Globals
 import DateTimeTools as TT
-from ..Tools.DTPlotLabel import DTPlotLabel
 
 def PlotMSHCrossingMagData(Crossing,MagType='MSM',Ab=None,Minute=False,Rsm=1.42,fig=None,maps=[1,1,0,0],noxlabel=False):
 	'''
@@ -83,7 +82,7 @@ def PlotMSHCrossingMagData(Crossing,MagType='MSM',Ab=None,Minute=False,Rsm=1.42,
 	OverlayMP(ax,[data.Date[0],data.Date[-1]])
 
 	if noxlabel == False:
-		DTPlotLabel(ax,utc,data.Date,Seconds=True,IncludeYear=False)
+		TT.DTPlotLabel(ax,Seconds=True,IncludeYear=False)
 		fig.xlabel('UT')
 	else:
 		ax.xaxis.set_visible(False)
