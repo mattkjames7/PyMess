@@ -4,7 +4,7 @@ from .MSHCrossingMagData import MSHCrossingMagData
 from .. import Globals
 import DateTimeTools as TT
 
-def PlotMSHCrossingMagData(Crossing,MagType='MSM',Ab=None,Minute=False,Rsm=1.42,fig=None,maps=[1,1,0,0],noxlabel=False):
+def PlotMSHCrossingMagData(Crossing,MagType='MSM',Ab=None,Minute=False,Rsm=1.42,fig=None,maps=[1,1,0,0],noxlabel=False,Res=None):
 	'''
 	Plots magnetometer data during the time of MSH crossing.
 	
@@ -46,7 +46,7 @@ def PlotMSHCrossingMagData(Crossing,MagType='MSM',Ab=None,Minute=False,Rsm=1.42,
 
 	
 	#load in data
-	data = MSHCrossingMagData(Crossing,MagType,Ab,Minute,Res,Rsm)
+	data = MSHCrossingMagData(Crossing,MagType,Ab,Minute,Res,Rsm,MagType=MagType)
 
 	#create a continuous time axis
 	utc = np.copy(data.ut)

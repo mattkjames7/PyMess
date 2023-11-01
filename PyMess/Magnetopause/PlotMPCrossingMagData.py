@@ -5,7 +5,7 @@ from .. import Globals
 import DateTimeTools as TT
 from .OverlayMP import OverlayMP
 
-def PlotMPCrossingMagData(Crossing,MagType='MSM',Ab=None,Minute=False,Rsm=1.42,Padding=0.0,fig=None,maps=[1,1,0,0],noxlabel=False):
+def PlotMPCrossingMagData(Crossing,MagType='MSM',Ab=None,Minute=False,Rsm=1.42,Padding=0.0,fig=None,maps=[1,1,0,0],noxlabel=False,Res=None):
 	'''
 	Plots magnetometer data around the time of MP crossing.
 	
@@ -57,10 +57,10 @@ def PlotMPCrossingMagData(Crossing,MagType='MSM',Ab=None,Minute=False,Rsm=1.42,P
 
 	
 	#load in data
-	data = MPCrossingMagData(Crossing,MagType,Ab,Minute,Res,Rsm,Padding)
+	data = MPCrossingMagData(Crossing,MagType,Ab,Minute,Res,Rsm,Padding,MagType=MagType)
 
 	#create a continuous time axis
-	utc = np.copy(data.ut)
+	utc = np.copy(data.utc)
 	neg = np.where(utc[1:] < utc[:-1])[0]
 	if neg.size > 0:
 		for i in range(0,neg,size):
@@ -105,7 +105,7 @@ def PlotMPCrossingMagData(Crossing,MagType='MSM',Ab=None,Minute=False,Rsm=1.42,P
 	OverlayMP(ax,[data.Date[0],data.Date[-1]])
 
 	if noxlabel == False:
-		TT.DTPlotLabel(ax,Seconds=True,IncludeYear=False)
+		TT.DTPlotLabel(ax,Seconds=True)
 		fig.xlabel('UT')
 	else:
 		ax.xaxis.set_visible(False)

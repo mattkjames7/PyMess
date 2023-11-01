@@ -6,7 +6,8 @@ import DateTimeTools as TT
 from .GetMPCrossings import GetMPCrossings
 
 def MPCrossingMagData(Crossing,Type='MPN',Ab=None,Minute=False,Res=None,
-		Rsm=1.42,Padding=0.0,DetectGaps=None,Autosave=True,Verbose=True):
+		Rsm=1.42,Padding=0.0,DetectGaps=None,Autosave=True,Verbose=True,
+		MagType='B.Bmp'):
 	'''
 	Reads in magnetometer data around the time of a MP crossing.
 	
@@ -31,13 +32,13 @@ def MPCrossingMagData(Crossing,Type='MPN',Ab=None,Minute=False,Res=None,
 	mpc = mpc[Crossing]
 	
 	#add the required padding in time
-	ut0 = mpc.ut0 - padding
+	ut0 = mpc.ut0 - Padding
 	if ut0 < 0.0:
 		ut0 += 24.0
 		date0 = TT.MinusDay(mpc.Date0)
 	else:
 		date0 = mpc.Date0
-	ut1 = mpc.ut1 + padding
+	ut1 = mpc.ut1 + Padding
 	if ut1 >= 24.0:
 		ut1 -= 24.0
 		date1 = TT.PlusDay(mpc.Date1)
@@ -46,11 +47,11 @@ def MPCrossingMagData(Crossing,Type='MPN',Ab=None,Minute=False,Res=None,
 	
 	#now to select the required data product
 	if MagType == 'B.Bmp':
-		data = GetData([date0,date1],ut=[ut0,ut1],Minute=Minute,res=res,Type='MSM',
+		data = GetData([date0,date1],ut=[ut0,ut1],Minute=Minute,res=Res,Type='MSM',
 				DetectGaps=DetectGaps,Autosave=Autosave,Ab=Ab,Verbose=Verbose)
-		data = BdotBmp([date0,date1],ut=[ut0,ut1],Minute=Minute,res=res,indata=data)
+		data = BdotBmp([date0,date1],ut=[ut0,ut1],Minute=Minute,res=Res,indata=data)
 	else:
-		data = GetData([date0,date1],ut=[ut0,ut1],Minute=Minute,res=res,Type=Type,
+		data = GetData([date0,date1],ut=[ut0,ut1],Minute=Minute,res=Res,Type=Type,
 				DetectGaps=DetectGaps,Autosave=Autosave,Ab=Ab,Verbose=Verbose)
 
 		

@@ -27,9 +27,11 @@ def OverlayMP(ax,Date,ShadeCrossings=True,UseLabel=True):
 		#starting at 0 at midnight on the first day, ending at 24*No of days
 		#in total. Anything outside of the plot range shouldn't show up 
 		#(in theory anyway)
-		ut0 = ContUT(MPData.Date0,MPData.ut0)
-		ut1 = ContUT(MPData.Date1,MPData.ut1)
+		ut0 = TT.ContUT(MPData.Date0,MPData.ut0)
+		ut1 = TT.ContUT(MPData.Date1,MPData.ut1)
 			
+		print(ut0,ut1)
+		print(ax.get_xlim())
 	
 		#now for plotting
 		#get the plots y limits

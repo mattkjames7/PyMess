@@ -5,7 +5,7 @@ import RecarrayTools as RT
 import DateTimeTools as TT
 import numpy as np
 
-def MSHCrossingMagData(Crossing,Type='MSM',Ab=None,Minute=False,Res=None,Rsm=1.42,DetectGaps=None,Autosave=True,Verbose=True):
+def MSHCrossingMagData(Crossing,Type='MSM',Ab=None,Minute=False,Res=None,Rsm=1.42,DetectGaps=None,Autosave=True,Verbose=True,MagType='MSM'):
 	'''
 	Reads in magnetometer data during the time of a magnetosheath
 	crossing.
@@ -33,7 +33,7 @@ def MSHCrossingMagData(Crossing,Type='MSM',Ab=None,Minute=False,Res=None,Rsm=1.4
 	ut0 = mshc.ut0
 	ut1 = mshc.ut1
 	
-	data = GetData([date0,date1],ut=[ut0,ut1],Minute=Minute,res=res,Type=Type,
+	data = GetData([date0,date1],ut=[ut0,ut1],Minute=Minute,res=Res,Type=Type,
 				DetectGaps=DetectGaps,Autosave=Autosave,Ab=Ab,Verbose=Verbose)
 		
 	return data

@@ -54,7 +54,7 @@ def BdotBmp(Date,ut=[0.0,24.0],Minute=False,res=None,Ab=None,indata=None):
 
 	#find MP field
 	#bxmp,bymp,bzmp = kt14.ModelField(data.Xmsm,data.Ymsm,data.Zmsm,False)
-	bxmp,bymp,bzmp = kt14.ModelField(xmp,ymp,zmp,False)
+	bxmp,bymp,bzmp = kt17.ModelField(xmp,ymp,zmp)
 	BmagMP = np.sqrt(bxmp**2 + bymp**2 + bzmp**2)
 
 	#dot product
@@ -67,7 +67,7 @@ def BdotBmp(Date,ut=[0.0,24.0],Minute=False,res=None,Ab=None,indata=None):
 	out = np.recarray(data.size,dtype=dtype)
 	out.Date = data.ut
 	out.ut = data.ut
-	out.BdotBmp = BdotBmp
+	out.BdotBmp = BdtBmp
 	out.Angle = angle
 	
 	return out
