@@ -1,6 +1,7 @@
 import numpy as np
 from .FindPDSFiles import FindPDSFiles
 from ...Tools.ReadPDSFile import ReadPDSFile
+from .ReadPDS4 import ReadPDS4
 import RecarrayTools as RT
 from ... import Globals
 from ...Tools.PDSFMTtodtype import PDSFMTtodtype
@@ -65,10 +66,13 @@ def ConvertToBinary(ConvEDR=True,ConvCDR=True,ConvESPEC=True,ConvNTP=True):
 	for i in range(0,4):
 		print('Converting Product: {:s} ({:d}/{:d})'.format(Prods[i],i+1,4))
 		if ConvList[i]:
-			fmt,files,outdir = nspds[Prods[i]]
+			labels,files,outdir = nspds[Prods[i]]
+			if len(files) == 0:
+				print('No files found - skipping')
+				continue
 			field = allfields[i]
 			
-			_ConvBinary(fmt,files,outdir,fpatts[i],field,DateInds[i])
+			_ConvBinary(labels,files,outdir,fpatts[i],field,DateInds[i])
 		
 		
 def _NewDtype(pdsdata,fields):
@@ -94,21 +98,21 @@ def _NewDtype(pdsdata,fields):
 				tmp = (fields[f],pdsdata[f].dtype.str,pdsdata[f].shape[1:])
 			newdtype.append(tmp)
 	return newdtype
+
+
+def _DayNotoDate(year,doy):
+	"""Return a scalar date with old and new DateTimeTools versions."""
+	return np.asarray(TT.DayNotoDate(np.int32(year),np.int32(doy))).reshape(-1)[0]
 		
 		
 
-def _ConvBinary(fmt,files,outdir,fpatt,fields,DateInds):
+def _ConvBinary(labels,files,outdir,fpatt,fields,DateInds):
 	#set the output folder
 	outpath = Globals.MessPath+'FIPS/'+outdir
 	
 	if not os.path.isdir(outpath):
-		os.system('mkdir -pv '+outpath)
-	#get fmt data
-	fmtdata = PDSFMTtodtype(fmt)
-	
-	
+		os.makedirs(outpath)
 	oldfields = list(fields.keys())
-	newfields = [fields[f] for f in oldfields]
 
 	
 	#loop through files
@@ -122,10 +126,14 @@ def _ConvBinary(fmt,files,outdir,fpatt,fields,DateInds):
 		datestr = flast[DateInds[0]:DateInds[1]+1]
 		year = np.int32(datestr[:4])
 		doy = np.int32(datestr[4:7])
-		Date = TT.DayNotoDate(year,doy)
+		Date = _DayNotoDate(year,doy)
 		
-		#read the file first
-		data,_ = ReadPDSFile(files[i],fmtdata)
+		#read the file using its PDS4 label (or a legacy PDS3 FMT)
+		label = labels[i]
+		if label.lower().endswith(('.xml','.lblx')):
+			data,_ = ReadPDS4(label)
+		else:
+			data,_ = ReadPDSFile(files[i],PDSFMTtodtype(label))
 		
 		#get the new dtype if needed
 		if i == 0:
@@ -144,7 +152,7 @@ def _ConvBinary(fmt,files,outdir,fpatt,fields,DateInds):
 				#probably a date, time or date and time combination
 				if len(fields[f]) == 2:
 					x = data[f][0]
-					out.Date = [TT.DayNotoDate(np.int32(x[0:4]),np.int32(x[5:8])) for x in data[f]]
+					out.Date = [_DayNotoDate(x[0:4],x[5:8]) for x in data[f]]
 					out.ut = [np.float32(x[9:11])+np.float32(x[12:14])/60.0+np.float32(x[15:])/3600.0 for x in data[f]]
 				elif len(fields[f]) == 1 and fields[f] == 'Date':
 					out.Date = [np.int32(x[0:4]+x[5:7]+x[8:10]) for x in data[f]]
@@ -160,4 +168,3 @@ def _ConvBinary(fmt,files,outdir,fpatt,fields,DateInds):
 		
 	print()
 	
-

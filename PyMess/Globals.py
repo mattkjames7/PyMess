@@ -2,10 +2,11 @@ import os
 import numpy as np
 ModulePath = os.path.dirname(__file__)+'/'
 ModuleData = os.path.dirname(__file__)+'/__data/'
-try:
-	MessPath = os.getenv('TEST_MESSENGER_PATH')+'/'
-except:
-	print('Please set TEST_MESSENGER_PATH environment variable')
+_messenger_path = os.getenv('MESSENGER_PATH') or os.getenv('TEST_MESSENGER_PATH')
+if _messenger_path:
+	MessPath = _messenger_path.rstrip('/')+'/'
+else:
+	print('Please set MESSENGER_PATH environment variable')
 	MessPath = ''
 	
 #mission elapsed time
@@ -160,4 +161,3 @@ dtype10s = [('Date','int32'),
 			('pk','float32'),
 			('k','float32')]
 			
-
