@@ -14,6 +14,7 @@ PPI_DATA = "https://pds-ppi.igpp.ucla.edu/data/"
 COLLECTIONS = (
 	"mess-epps-fips-raw/data/scan/",
 	"mess-epps-fips-calibrated/data/scan/",
+	"mess-epps-fips-derived/data-fips-espec/",
 	"mess-epps-fips-derived/data-fips-ntp/",
 )
 USER_AGENT = "PyMess-FIPS-downloader/1.0"
@@ -63,8 +64,8 @@ def _ReadIndex(url, Retries, Timeout):
 	return sorted(set(children))
 
 
-def _FindFiles(Retries, Timeout):
-	"""Recursively list files in the three FIPS paper collections."""
+def _FindFiles(Retries, Timeout, Verbose=False):
+	"""Recursively list files in the FIPS conversion collections."""
 	stack = [urljoin(PPI_DATA, collection) for collection in COLLECTIONS]
 	seen = set()
 	files = []
@@ -78,6 +79,16 @@ def _FindFiles(Retries, Timeout):
 				stack.append(child)
 			else:
 				files.append(child)
+		if Verbose:
+			print(
+				"\rIndexed {:d} directories; found {:d} files".format(
+					len(seen), len(files)
+				),
+				end="",
+				flush=True,
+			)
+	if Verbose:
+		print()
 	return sorted(set(files))
 
 
@@ -109,13 +120,14 @@ def _DownloadFile(url, output, Overwrite, Retries, Timeout):
 	return "failed", "{:s}: {}".format(relative, last_error)
 
 
-def DownloadData(Overwrite=False, Workers=4, Retries=3, Timeout=60, Output=None):
-	"""Mirror the FIPS EDR scan, CDR scan and NTP PDS collections.
+def DownloadData(Overwrite=False, Workers=4, Retries=3, Timeout=60, Output=None,
+				 Verbose=True):
+	"""Mirror the FIPS EDR scan, CDR scan, ESPEC and NTP collections.
 
 	Files are placed below ``$MESSENGER_PATH/FIPS/PDS/pds_messenger_fips``
 	with their PDS/PPI directory structure intact. Existing files are skipped
 	unless ``Overwrite`` is true. ``Output`` may be supplied to use a different
-	destination directory.
+	destination directory. Set ``Verbose=False`` to suppress progress output.
 
 	Returns a dictionary containing ``downloaded``, ``skipped`` and ``failed``
 	file counts. A failed download also raises ``RuntimeError`` after all work
@@ -129,7 +141,13 @@ def DownloadData(Overwrite=False, Workers=4, Retries=3, Timeout=60, Output=None)
 	else:
 		output = Path(Output).expanduser()
 
-	files = _FindFiles(Retries, Timeout)
+	if Verbose:
+		print("Discovering MESSENGER FIPS PDS files...", flush=True)
+	files = _FindFiles(Retries, Timeout, Verbose)
+	if Verbose:
+		print("Processing {:d} files using {:d} workers...".format(
+			len(files), max(int(Workers), 1)
+		), flush=True)
 	counts = {"downloaded": 0, "skipped": 0, "failed": 0}
 	failures = []
 	with ThreadPoolExecutor(max_workers=max(int(Workers), 1)) as executor:
@@ -137,16 +155,34 @@ def DownloadData(Overwrite=False, Workers=4, Retries=3, Timeout=60, Output=None)
 			executor.submit(_DownloadFile, url, output, Overwrite, Retries, Timeout)
 			for url in files
 		]
-		for job in as_completed(jobs):
+		for completed, job in enumerate(as_completed(jobs), 1):
 			status, message = job.result()
 			counts[status] += 1
 			if status == "failed":
 				failures.append(message)
+			if Verbose:
+				print(
+					"\rFiles {:d}/{:d}: downloaded={:d}, skipped={:d}, failed={:d}".format(
+						completed, len(files), counts["downloaded"],
+						counts["skipped"], counts["failed"]
+					),
+					end="",
+					flush=True,
+				)
+	if Verbose:
+		print()
 
 	if failures:
 		raise RuntimeError(
 			"Failed to download {:d} FIPS PDS file(s):\n{}".format(
 				len(failures), "\n".join(failures)
 			)
+		)
+	if Verbose:
+		print(
+			"FIPS PDS download complete: downloaded={:d}, skipped={:d}, failed={:d}".format(
+				counts["downloaded"], counts["skipped"], counts["failed"]
+			),
+			flush=True,
 		)
 	return counts
