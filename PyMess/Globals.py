@@ -8,7 +8,7 @@ if _messenger_path:
 else:
 	print('Please set MESSENGER_PATH environment variable')
 	MessPath = ''
-	
+
 #mission elapsed time
 MET = None
 
@@ -60,7 +60,7 @@ bins2 = np.array([  13.577,  12.332,  11.201,  10.174,   9.241,   8.393,
 					 0.263,   0.239,   0.217,   0.197,   0.179,   0.163,   0.148,
 					 0.134,   0.122,   0.111,   0.1  ,   0.046,   0.046,   0.046,
 					 0.046,   0.046,   0.046,   0.046,   0.046,   0.046,   0.046,
-					 0.046,   0.046])	
+					 0.046,   0.046])
 
 bins0 = np.array([  13.577,  12.332,  11.201,  10.174,   9.241,   8.393,
 					 7.623,   6.924,   6.289,   5.712,   5.188,   4.713,   4.28 ,
@@ -80,7 +80,7 @@ EQBins = {	0:	bins0,
 #Tau
 Tau = {	0:	0.095,
 		2:	0.005}
-		
+
 #Ion Mass
 IonMass = { 'H': 	1.007,
 			'He':	4.0026,
@@ -108,12 +108,12 @@ dtype60s = [('Date','int32'),				#Date in format yyyymmdd
 			('StartIndex','int32'),			#Start index
 			('StopIndex','int32'),			#end index
 			('ScanType','int8'),			#Scan Type is either 0 or 2 to determine energy bin ranges
-			('NSpec','int32'),				#Number of spectra combined 
+			('NSpec','int32'),				#Number of spectra combined
 			('Tau','float32'),				#Tau parameter - dwell time on each energy bin
 			('CDRQuality','int16',(7,)),	#CDR data quality flag (0 = good, I think)
 			('NTPQuality','int16'),			#NTP data quality flag (0 = good)
 			('Ion','U3'),					#Species of ion
-			('HasNTP','bool8'),				#Whether this spectrum has an NTP fit
+			('HasNTP','bool'),				#Whether this spectrum has an NTP fit
 			('EQBins','float32',(64,)),		#Energy/charge bins in keV/Q
 			('Efficiency','float32',(64,)),	#Efficiency parameter (rho) - carful, I worked backwards to get this so it may be wrong!
 			('VBins','float32',(64,)),		#Velocity bins in km/s
@@ -146,7 +146,7 @@ dtype10s = [('Date','int32'),
 			('CDRQuality','int16'),
 			('NTPQuality','int16'),
 			('Ion','U3'),
-			('HasNTP','bool8'),
+			('HasNTP','bool'),
 			('EQBins','float32',(64,)),
 			('Efficiency','float32',(64,)),
 			('VBins','float32',(64,)),
@@ -160,4 +160,3 @@ dtype10s = [('Date','int32'),
 			('tk','float32'),
 			('pk','float32'),
 			('k','float32')]
-			
