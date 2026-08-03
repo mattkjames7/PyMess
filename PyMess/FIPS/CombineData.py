@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor,as_completed
+
 import numpy as np
 from .ReadData import ReadData
 from .. import Globals
@@ -12,6 +14,7 @@ from ..Tools.ContUT import ContUT
 from ..Pos.GetRegion import GetRegion
 from ..Pos.GetPosition import GetPosition
 from scipy.interpolate import interp1d
+from tqdm.auto import tqdm
 
 def _CalculateProtonEff(Ebins,Tau,Flux,Counts):
 	'''
@@ -24,7 +27,8 @@ def _CalculateProtonEff(Ebins,Tau,Flux,Counts):
 	return Counts/(Flux*Ebins*Tau*g*dOmega)
 
 
-def Combine60sData(StartI=0,StopI=None,Verbose=True,Overwrite=False,DryRun=False,Species=['H','He','He2','Na','O']):
+def Combine60sData(StartI=0,StopI=None,Overwrite=False,DryRun=False,
+				   Species=None,Threads=4):
 	'''
 	This routine will combine the EDR,CDR and DDR FIPS data into a
 	single file for each date. Multiple high time resolution spectra
@@ -45,20 +49,18 @@ def Combine60sData(StartI=0,StopI=None,Verbose=True,Overwrite=False,DryRun=False
 		dates.append(date)
 		date = TT.PlusDay(date)
 	nd = np.size(dates)
+	if Species is None:
+		Species = ['H','He','He2','Na','O']
 
 	#test each date to see if the required files exist
 	exists = np.zeros(nd,dtype='bool')
 	path = Globals.MessPath + 'FIPS/'
 	for i in range(0,nd):
-		if Verbose:
-			print('\rChecking date {0} of {1}'.format(i+1,nd),end='')
 		ee = os.path.isfile(path + 'EDR/' + 'FIPS-EDR-{:08d}.bin'.format(dates[i]))
 		ce = os.path.isfile(path + 'CDR/' + 'FIPS-CDR-{:08d}.bin'.format(dates[i]))
 		se = os.path.isfile(path + 'ESPEC/' + 'FIPS-ESPEC-{:08d}.bin'.format(dates[i]))
 		ne = os.path.isfile(path + 'NTP/' + 'FIPS-NTP-{:08d}.bin'.format(dates[i]))
 		exists[i] = ee | ce | se | ne
-	if Verbose:
-		print()
 	use = np.where(exists)[0]
 	dates = np.array(dates)[use]
 	nd = np.size(dates)
@@ -67,15 +69,18 @@ def Combine60sData(StartI=0,StopI=None,Verbose=True,Overwrite=False,DryRun=False
 	else:
 		StopI = np.min([StopI,nd])
 
-	#loop through each date
-	for i in range(StartI,StopI):
-		print('Combining Date {0} of {1} ({2})'.format(i+1,nd,dates[i]),flush=True)
-		for S in Species:
-			print('Combining: '+S)
-			_Combine60sDateSpecies(dates[i],S,Verbose,Overwrite,DryRun)
+	jobs = [(dates[i],S) for i in range(StartI,StopI) for S in Species]
+	with ThreadPoolExecutor(max_workers=max(int(Threads),1)) as executor:
+		futures = [
+			executor.submit(_Combine60sDateSpecies,date,S,Overwrite,DryRun)
+			for date,S in jobs
+		]
+		for future in tqdm(
+				as_completed(futures),total=len(futures),desc='Combining 60s FIPS'):
+			future.result()
 
 
-def Combine10sData(StartI=0,StopI=None,Verbose=True,Overwrite=False):
+def Combine10sData(StartI=0,StopI=None,Overwrite=False,Threads=4):
 	'''
 	This routine will combine the EDR,CDR and DDR FIPS data into a
 	single file for each date. Multiple high time resolution spectra
@@ -114,14 +119,19 @@ def Combine10sData(StartI=0,StopI=None,Verbose=True,Overwrite=False):
 	else:
 		StopI = np.min([StopI,nd])
 
-	#loop through each date
-	for i in range(StartI,StopI):
-		print('Combining Date {0} of {1} ({2})'.format(i+1,nd,dates[i]),flush=True)
-		_Combine10sDateSpecies(dates[i],'H',Verbose,Overwrite)
+	jobs = list(dates[StartI:StopI])
+	with ThreadPoolExecutor(max_workers=max(int(Threads),1)) as executor:
+		futures = [
+			executor.submit(_Combine10sDateSpecies,date,'H',Overwrite)
+			for date in jobs
+		]
+		for future in tqdm(
+				as_completed(futures),total=len(futures),desc='Combining 10s FIPS'):
+			future.result()
 
 
 
-def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=False):
+def _Combine60sDateSpecies(Date,Species='H',Overwrite=False,DryRun=False):
 	'''
 	Combines the relevant files for a given species on a given date.
 
@@ -150,22 +160,20 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 
 	#get output dtype, file name and path
 	OutPath = Globals.MessPath+'FIPS/Combined/60s/{:s}/'.format(Species)
-	if not os.path.isdir(OutPath):
-		os.system('mkdir -pv '+OutPath)
+	os.makedirs(OutPath,exist_ok=True)
 	dtype = Globals.dtype60s
 	fname = OutPath + '{:08d}.bin'.format(Date)
 
 	if os.path.isfile(fname) and not Overwrite and not DryRun:
-		print("File {:s} exists".format(fname))
 		return
 
 	#read in the four data files (if they exist)
-	dS = ReadData(Date,'espec')
-	dN = ReadData(Date,'ntp')
-	dE = ReadData(Date,'edr')
-	dC = ReadData(Date,'cdr')
+	dS = ReadData(Date,'espec',quiet=True)
+	dN = ReadData(Date,'ntp',quiet=True)
+	dE = ReadData(Date,'edr',quiet=True)
+	dC = ReadData(Date,'cdr',quiet=True)
 	if Species == 'H':
-		dA = ReadData(Date,'ann')
+		dA = ReadData(Date,'ann',quiet=True)
 	else:
 		dA = None
 
@@ -224,7 +232,6 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 	#now we should have grouped all of the data, time to create the output array
 	n = np.size(StartMET)
 	if n == 0:
-		print('no data')
 		return
 	out = np.recarray(n,dtype=dtype)
 
@@ -260,7 +267,7 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 		pos.z = np.nan
 
 	#location
-	out.Loc = GetRegion(out.Date,out.ut,out.utc,Verbose=False)
+	out.Loc = GetRegion(out.Date,out.ut,out.utc)
 
 
 	#set default CDR quality flag
@@ -281,14 +288,6 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 	if not dA is None:
 		if dA.size > 0:
 			Imatch,_ = MatchUT(out.ut,dA.ut)
-			ngood = np.sum(Imatch > -1)
-			if ngood == dA.size:
-				if Verbose:
-					print('ANN data match')
-			elif ngood < dA.size:
-				print('WARNING: missing {:d} ANN points'.format(dA.size-ngood))
-			else:
-				print('WARNING: too many matches, something really bad has happened!')
 			for i in range(0,Imatch.size):
 				if Imatch[i] > -1:
 					out.Class[i] = dA.Class[Imatch[i]]
@@ -307,8 +306,6 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 
 	#loop through groups
 	for i in range(0,n):
-		if Verbose:
-			print('\rCopying data {:f}%'.format(100.0*(i+1)/n),end='')
 		#get the METS from ESPEC first, the rest have to match this!
 		useS = np.where((dS.Index >= StartInd[i]) & (dS.Index <= StopInd[i]))[0]
 		METS = dS.MET[useS]
@@ -378,9 +375,6 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 			out.p[i] = dN[useN[0]].p
 			out.HasNTP[i] = True
 			out.NTPQuality[i] = dN[useN[0]].Quality
-	if Verbose:
-		print()
-
 	#This following bit will only work for protons currently, for all other ions Eff = 1
 	if Species == 'H':
 		#calculate efficiencies
@@ -388,8 +382,6 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 		Tau0 = np.array([95]*60 + [0]*4)/1000.0
 		Eff = np.zeros((n,64),dtype='float32')
 		for i in range(0,n):
-			if Verbose:
-				print('\rCalculating Efficiencies {:f}%'.format(100.0*(i+1)/n),end='')
 			if out[i].ScanType == 0:
 				Ebins = eqbins0
 				Tau = Tau0
@@ -408,8 +400,6 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 		Tau0 = np.array([95]*60 + [0]*4)/1000.0
 		Eff = np.zeros((n,64),dtype='float32')
 		for i in range(0,n):
-			if Verbose:
-				print('\rCalculating Efficiencies {:f}%'.format(100.0*(i+1)/n),end='')
 			if out[i].ScanType == 0:
 				Ebins = eqbins0
 				Tau = Tau0
@@ -422,14 +412,9 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 		if np.size(Eff.shape) == 2:
 			Eff = np.nanmean(Eff,0)
 			Eff[np.isfinite(Eff) == False] = np.nan
-	if Verbose:
-		print()
-
 	if Species == 'H':
 		#attempt to refit the spectrum with a kappa distribution
 		for i in range(0,n):
-			if Verbose:
-				print('\rRefitting Spectra {:f}%'.format(100.0*(i+1)/n),end='')
 			#save efficiency
 			out[i].Efficiency[:] = Eff
 
@@ -457,13 +442,11 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 					out[i].k = np.nan
 					out[i].pk = np.nan
 
-		if Verbose:
-			print()
 	if out.size > 0 and not DryRun:
 		RT.SaveRecarray(out,fname)
 	return out
 
-def _Combine10sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
+def _Combine10sDateSpecies(Date,Species='H',Overwrite=False):
 	'''
 	Combines the relevant files for a given species on a given date.
 
@@ -492,21 +475,19 @@ def _Combine10sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
 
 	#get output dtype, file name and path
 	OutPath = Globals.MessPath+'FIPS/Combined/10s/{:s}/'.format(Species)
-	if not os.path.isdir(OutPath):
-		os.system('mkdir -pv '+OutPath)
+	os.makedirs(OutPath,exist_ok=True)
 	dtype = Globals.dtype10s
 	fname = OutPath + '{:08d}.bin'.format(Date)
 
 	if os.path.isfile(fname) and not Overwrite:
-		print("File {:s} exists".format(fname))
 		return
 
 
 	#read in the four data files (if they exist)
-	dS = ReadData(Date,'espec')
-	dN = ReadData(Date,'ntp')
-	dE = ReadData(Date,'edr')
-	dC = ReadData(Date,'cdr')
+	dS = ReadData(Date,'espec',quiet=True)
+	dN = ReadData(Date,'ntp',quiet=True)
+	dE = ReadData(Date,'edr',quiet=True)
+	dC = ReadData(Date,'cdr',quiet=True)
 
 
 	#check that there are any data points:
@@ -558,7 +539,7 @@ def _Combine10sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
 		pos.z = np.nan
 
 	#location
-	out.Loc = GetRegion(out.Date,out.ut,out.utc,Verbose=False)
+	out.Loc = GetRegion(out.Date,out.ut,out.utc)
 
 
 
@@ -572,8 +553,6 @@ def _Combine10sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
 
 	#loop through groups
 	for i in range(0,n):
-		if Verbose:
-			print('\rCopying data {:f}%'.format(100.0*(i+1)/n),end='')
 		#get the METS from ESPEC first, the rest have to match this!
 		if Species == 'H':
 			useS = np.where(dS.Index == Index[i])[0]
@@ -637,9 +616,6 @@ def _Combine10sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
 			out.p[i] = dN[useN[0]].p
 			out.HasNTP[i] = True
 			out.NTPQuality[i] = dN[useN[0]].Quality
-	if Verbose:
-		print()
-
 	#This following bit will only work for protons currently, for all other ions Eff = 1
 	if Species == 'H':
 		#calculate efficiencies
@@ -647,8 +623,6 @@ def _Combine10sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
 		Tau0 = np.array([95]*60 + [0]*4)/1000.0
 		Eff = np.zeros((n,64),dtype='float32')
 		for i in range(0,n):
-			if Verbose:
-				print('\rCalculating Efficiencies {:f}%'.format(100.0*(i+1)/n),end='')
 			if out[i].ScanType == 0:
 				Ebins = eqbins0
 				Tau = Tau0
@@ -670,8 +644,6 @@ def _Combine10sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
 		Tau0 = np.array([95]*60 + [0]*4)/1000.0
 		Eff = np.zeros((n,64),dtype='float32')
 		for i in range(0,n):
-			if Verbose:
-				print('\rCalculating Efficiencies {:f}%'.format(100.0*(i+1)/n),end='')
 			if out[i].ScanType == 0:
 				Ebins = eqbins0
 				Tau = Tau0
@@ -686,14 +658,9 @@ def _Combine10sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
 		if np.size(Eff.shape) == 2:
 			Eff = np.nanmean(Eff,0)
 			Eff[np.isfinite(Eff) == False] = np.nan
-	if Verbose:
-		print()
-
 	if Species == 'H':
 		#attempt to refit the spectrum with a kappa distribution
 		for i in range(0,n):
-			if Verbose:
-				print('\rRefitting Spectra {:f}%'.format(100.0*(i+1)/n),end='')
 			#save efficiency
 			out[i].Efficiency[:] = Eff
 
@@ -720,8 +687,6 @@ def _Combine10sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
 				out[i].k = np.nan
 				out[i].pk = np.nan
 
-		if Verbose:
-			print()
 	if out.size > 0:
 		RT.SaveRecarray(out,fname)
 	return out

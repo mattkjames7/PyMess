@@ -28,8 +28,8 @@ setuptools.setup(
 		'RecarrayTools',
 		'PyFileIO',
 		'DateTimeTools',
+		'tqdm',
 	],
 )
-
 
 
