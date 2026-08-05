@@ -27,6 +27,26 @@ def _CalculateProtonEff(Ebins,Tau,Flux,Counts):
 	return Counts/(Flux*Ebins*Tau*g*dOmega)
 
 
+def _StoreCDRQuality(destination,quality):
+	"""Store CDR flags without overflowing the legacy seven-slot field.
+
+	For unusually large groups, the final slot contains the worst quality
+	flag from all remaining spectra so that a bad overflow flag is not lost.
+	"""
+	quality = np.asarray(quality)
+	capacity = destination.size
+	if quality.size <= capacity:
+		destination[:quality.size] = quality
+	else:
+		destination[:capacity - 1] = quality[:capacity - 1]
+		destination[capacity - 1] = np.max(quality[capacity - 1:])
+
+
+def _Mode(values):
+	"""Return a scalar mode with both old and current SciPy versions."""
+	return np.asarray(stats.mode(values).mode).reshape(-1)[0]
+
+
 def _PreloadWorkerData():
 	"""Load read-only mission data before forking worker processes."""
 	from ..BowShock.GetBSCrossings import GetBSCrossings
@@ -44,12 +64,24 @@ def _PreloadWorkerData():
 
 
 def _Combine60sJob(Date,Species,Overwrite,DryRun):
-	_Combine60sDateSpecies(Date,Species,Overwrite,DryRun)
+	try:
+		_Combine60sDateSpecies(Date,Species,Overwrite,DryRun)
+	except Exception as error:
+		raise RuntimeError(
+			'Failed to combine 60s FIPS data for {:08d} ({:s})'.format(
+				int(Date),Species
+			)
+		) from error
 	return int(Date),Species
 
 
 def _Combine10sJob(Date,Overwrite):
-	_Combine10sDateSpecies(Date,'H',Overwrite)
+	try:
+		_Combine10sDateSpecies(Date,'H',Overwrite)
+	except Exception as error:
+		raise RuntimeError(
+			'Failed to combine 10s FIPS data for {:08d}'.format(int(Date))
+		) from error
 	return int(Date)
 
 
@@ -373,7 +405,7 @@ def _Combine60sDateSpecies(Date,Species='H',Overwrite=False,DryRun=False):
 			out[i].EQBins = eqbins0
 			out[i].Tau = 0.095
 		else:
-			out[i].ScanType = stats.mode(dE[useE].ScanType).mode
+			out[i].ScanType = _Mode(dE[useE].ScanType)
 
 			if out[i].ScanType == 0:
 				out[i].EQBins = eqbins0
@@ -400,7 +432,7 @@ def _Combine60sDateSpecies(Date,Species='H',Overwrite=False,DryRun=False):
 
 		#save the quality flags
 		if useC.size > 0 and Species == 'H':
-			out[i].CDRQuality[:useC.size] = dC[useC].Quality
+			_StoreCDRQuality(out[i].CDRQuality,dC[useC].Quality)
 
 
 		#input NTP values if they exist
@@ -587,6 +619,8 @@ def _Combine10sDateSpecies(Date,Species='H',Overwrite=False):
 	#Normally 0 = good, 1 = bad, here -1 = not present
 	out.CDRQuality[:] = -1
 	out.NTPQuality[:] = -1
+	out.Flux[:] = np.nan
+	out.PSD[:] = np.nan
 
 	#get the appropriate flux
 	Flux = dS[Species+'Flux']
@@ -615,7 +649,7 @@ def _Combine10sDateSpecies(Date,Species='H',Overwrite=False):
 			out[i].EQBins = eqbins0
 			out[i].Tau = 0.095
 		else:
-			out[i].ScanType = stats.mode(dE[useE].ScanType)[0][0]
+			out[i].ScanType = _Mode(dE[useE].ScanType)
 			if out[i].ScanType == 0:
 				out[i].EQBins = eqbins0
 				out[i].VBins = vbins0/1000.0
@@ -637,6 +671,11 @@ def _Combine10sDateSpecies(Date,Species='H',Overwrite=False):
 			out[i].Flux = Flux[useS[0]]
 
 			#calculate PSD
+			out[i].PSD = out[i].Flux*(mass/(out[i].VBins**2)) * (10.0/e)
+		elif Species == 'H' and useC.size > 0:
+			#ESPEC begins later in the mission; CDR contains the proton
+			#spectrum needed for earlier 10-second products.
+			out[i].Flux = dC.ProtonFlux[useC[0]]
 			out[i].PSD = out[i].Flux*(mass/(out[i].VBins**2)) * (10.0/e)
 
 		#save the quality flags
