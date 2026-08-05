@@ -1,4 +1,5 @@
-from concurrent.futures import ThreadPoolExecutor,as_completed
+from concurrent.futures import ProcessPoolExecutor,as_completed
+import multiprocessing
 
 import numpy as np
 from .ReadData import ReadData
@@ -6,7 +7,6 @@ from .. import Globals
 import DateTimeTools as TT
 from scipy import stats
 from .FitKappaDist import FitKappaDistCts
-from ..Tools.InArray import InArray
 import os
 import RecarrayTools as RT
 from ..Tools.MatchUT import MatchUT
@@ -27,8 +27,34 @@ def _CalculateProtonEff(Ebins,Tau,Flux,Counts):
 	return Counts/(Flux*Ebins*Tau*g*dOmega)
 
 
+def _PreloadWorkerData():
+	"""Load read-only mission data before forking worker processes."""
+	from ..BowShock.GetBSCrossings import GetBSCrossings
+	from ..BowShock.GetSolarWindTimes import GetSolarWindTimes
+	from ..Magnetopause.GetMPCrossings import GetMPCrossings
+	from ..Magnetopause.GetMSTimes import GetMSTimes
+	from ..Magnetosheath.GetMSHCrossings import GetMSHCrossings
+
+	GetPosition()
+	GetSolarWindTimes()
+	GetBSCrossings()
+	GetMSHCrossings()
+	GetMPCrossings()
+	GetMSTimes()
+
+
+def _Combine60sJob(Date,Species,Overwrite,DryRun):
+	_Combine60sDateSpecies(Date,Species,Overwrite,DryRun)
+	return int(Date),Species
+
+
+def _Combine10sJob(Date,Overwrite):
+	_Combine10sDateSpecies(Date,'H',Overwrite)
+	return int(Date)
+
+
 def Combine60sData(StartI=0,StopI=None,Overwrite=False,DryRun=False,
-				   Species=None,Threads=4):
+				   Species=None,Workers=4):
 	'''
 	This routine will combine the EDR,CDR and DDR FIPS data into a
 	single file for each date. Multiple high time resolution spectra
@@ -70,9 +96,16 @@ def Combine60sData(StartI=0,StopI=None,Overwrite=False,DryRun=False,
 		StopI = np.min([StopI,nd])
 
 	jobs = [(dates[i],S) for i in range(StartI,StopI) for S in Species]
-	with ThreadPoolExecutor(max_workers=max(int(Threads),1)) as executor:
+	if not jobs:
+		for _ in tqdm([],total=0,desc='Combining 60s FIPS'):
+			pass
+		return
+	_PreloadWorkerData()
+	context = multiprocessing.get_context('fork')
+	with ProcessPoolExecutor(
+			max_workers=max(int(Workers),1),mp_context=context) as executor:
 		futures = [
-			executor.submit(_Combine60sDateSpecies,date,S,Overwrite,DryRun)
+			executor.submit(_Combine60sJob,date,S,Overwrite,DryRun)
 			for date,S in jobs
 		]
 		for future in tqdm(
@@ -80,7 +113,7 @@ def Combine60sData(StartI=0,StopI=None,Overwrite=False,DryRun=False,
 			future.result()
 
 
-def Combine10sData(StartI=0,StopI=None,Overwrite=False,Threads=4):
+def Combine10sData(StartI=0,StopI=None,Overwrite=False,Workers=4):
 	'''
 	This routine will combine the EDR,CDR and DDR FIPS data into a
 	single file for each date. Multiple high time resolution spectra
@@ -120,9 +153,16 @@ def Combine10sData(StartI=0,StopI=None,Overwrite=False,Threads=4):
 		StopI = np.min([StopI,nd])
 
 	jobs = list(dates[StartI:StopI])
-	with ThreadPoolExecutor(max_workers=max(int(Threads),1)) as executor:
+	if not jobs:
+		for _ in tqdm([],total=0,desc='Combining 10s FIPS'):
+			pass
+		return
+	_PreloadWorkerData()
+	context = multiprocessing.get_context('fork')
+	with ProcessPoolExecutor(
+			max_workers=max(int(Workers),1),mp_context=context) as executor:
 		futures = [
-			executor.submit(_Combine10sDateSpecies,date,'H',Overwrite)
+			executor.submit(_Combine10sJob,date,Overwrite)
 			for date in jobs
 		]
 		for future in tqdm(
@@ -315,8 +355,8 @@ def _Combine60sDateSpecies(Date,Species='H',Overwrite=False,DryRun=False):
 		out[i].MET = METS[-1]
 
 		#now find the other indices by using the MET list
-		useE = np.where(InArray(dE.MET,METS))[0]
-		useC = np.where(InArray(dC.MET,METS))[0]
+		useE = np.where(np.isin(dE.MET,METS))[0]
+		useC = np.where(np.isin(dC.MET,METS))[0]
 
 		#useE = np.where((dE.MET >= StartMET[i]) & (dE.MET <= StopMET[i]))[0]
 
