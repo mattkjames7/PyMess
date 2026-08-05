@@ -8,3 +8,5 @@ from .FitMaxwellianDist import FitMaxwellianDist,FitMaxwellianDistCts
 from .FitKappaDist import FitKappaDist,FitKappaDistCts
 from .MaxwellBoltzmannDist import MaxwellBoltzmannDist,MaxwellBoltzmannDistCts
 from .KappaDist import KappaDist,KappaDistCts
+from .PlotFIPS import PlotFIPS
+from .PlotFIPSSpectrogram import PlotFIPSSpectrogram

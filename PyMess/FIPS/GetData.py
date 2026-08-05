@@ -36,7 +36,7 @@ def GetData(Date,ut=[0.0,24.0],Type='60H',Verbose=True):
 	for i in range(0,nd):
 		if Verbose:
 			print('\rCounting records in file {0} of {1} ({2})'.format(i+1,nd,n),end='')
-		n += ReadData(dates[i],Type,Length=True)
+		n += ReadData(dates[i],Type,Length=True,quiet=not Verbose)
 	if Verbose:
 			print('\rCounting records in file {0} of {1} ({2})'.format(i+1,nd,n))
 	#now load the data
@@ -44,7 +44,7 @@ def GetData(Date,ut=[0.0,24.0],Type='60H',Verbose=True):
 	for i in range(0,nd):
 		if Verbose:
 			print('\rReading file {0} of {1}'.format(i+1,nd),end='')
-		tmp = ReadData(dates[i],Type)
+		tmp = ReadData(dates[i],Type,quiet=not Verbose)
 		if p == 0:
 			out = np.recarray(n,dtype=tmp.dtype)
 		out[p:p+tmp.size] = tmp
