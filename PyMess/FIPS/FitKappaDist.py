@@ -128,7 +128,7 @@ def FitKappaDistCts(v,Counts,n0,T0,dOmega=1.15*np.pi,mass=1.67212e-27,Eff=1.0,nS
 	
 	good = np.where((Counts >= 0.0) & np.isfinite(Eff))[0]
 	if (good.size < 3.0):
-		return -1, -1 -1
+		return -1, -1, -1
 
 	Func = _GetMisfitFuncCts(v[good],Counts[good],dC[good],dOmega,mass,Eff[good],nSpec,Tau,g)
 	res = minimize(Func,[n0,T0,130.0],method='nelder-mead')

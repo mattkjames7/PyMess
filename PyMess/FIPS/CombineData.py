@@ -85,6 +85,24 @@ def _Combine10sJob(Date,Overwrite):
 	return int(Date)
 
 
+def _CombineDates(Date):
+	"""Return one date, an inclusive date range, or the full mission range."""
+	if Date is None:
+		date0,date1 = 20080820,20150430
+	else:
+		date = np.asarray(Date).reshape(-1)
+		if date.size == 1:
+			return np.array([int(date[0])],dtype='int32')
+		if date.size != 2:
+			raise ValueError('Date must be a single date or a two-date range')
+		date0,date1 = int(np.min(date)),int(np.max(date))
+
+	dates = [date0]
+	while dates[-1] < date1:
+		dates.append(int(TT.PlusDay(dates[-1])))
+	return np.asarray(dates,dtype='int32')
+
+
 def Combine60sData(StartI=0,StopI=None,Overwrite=False,DryRun=False,
 				   Species=None,Workers=4):
 	'''
@@ -145,7 +163,7 @@ def Combine60sData(StartI=0,StopI=None,Overwrite=False,DryRun=False,
 			future.result()
 
 
-def Combine10sData(StartI=0,StopI=None,Overwrite=False,Workers=4):
+def Combine10sData(Date=None,Overwrite=False,Workers=4):
 	'''
 	This routine will combine the EDR,CDR and DDR FIPS data into a
 	single file for each date. Multiple high time resolution spectra
@@ -155,16 +173,21 @@ def Combine10sData(StartI=0,StopI=None,Overwrite=False,Workers=4):
 	representative of the actual plasma at times - machine learning work
 	is being used to remove any bad fits.
 
+	Inputs
+	======
+	Date : int, two-element array or None
+		A single date in yyyymmdd format, or an inclusive [start, end]
+		range. If None, all mission dates are processed.
+	Overwrite : bool
+		Overwrite existing combined files.
+	Workers : int
+		Number of worker processes.
+
 
 	'''
 
-	#get list of dates to try from the first  flyby to the last day of
-	#orbital data
-	date = 20080820
-	dates = []
-	while date <= 20150430:
-		dates.append(date)
-		date = TT.PlusDay(date)
+	#get the requested date or inclusive range
+	dates = _CombineDates(Date)
 	nd = np.size(dates)
 
 	#test each date to see if the required files exist
@@ -179,12 +202,7 @@ def Combine10sData(StartI=0,StopI=None,Overwrite=False,Workers=4):
 	use = np.where(exists)[0]
 	dates = np.array(dates)[use]
 	nd = np.size(dates)
-	if StopI is None:
-		StopI = nd
-	else:
-		StopI = np.min([StopI,nd])
-
-	jobs = list(dates[StartI:StopI])
+	jobs = list(dates)
 	if not jobs:
 		for _ in tqdm([],total=0,desc='Combining 10s FIPS'):
 			pass
@@ -343,8 +361,8 @@ def _Combine60sDateSpecies(Date,Species='H',Overwrite=False,DryRun=False):
 
 
 	#set default CDR quality flag
-	#Normally 0 = good, 1 = bad, here -1 = not present
-	out.CDRQuality[:] = -1
+	#Normally 0 = good; all bits set denotes a missing CDR record.
+	out.CDRQuality[:] = np.iinfo(out.CDRQuality.dtype).max
 	out.NTPQuality[:] = -1
 
 	#match ut with ANN output and get ANN outputs
@@ -616,8 +634,8 @@ def _Combine10sDateSpecies(Date,Species='H',Overwrite=False):
 
 
 	#set default CDR quality flag
-	#Normally 0 = good, 1 = bad, here -1 = not present
-	out.CDRQuality[:] = -1
+	#Normally 0 = good; all bits set denotes a missing CDR record.
+	out.CDRQuality[:] = np.iinfo(out.CDRQuality.dtype).max
 	out.NTPQuality[:] = -1
 	out.Flux[:] = np.nan
 	out.PSD[:] = np.nan
@@ -739,6 +757,10 @@ def _Combine10sDateSpecies(Date,Species='H',Overwrite=False):
 			Eff[np.isfinite(Eff) == False] = np.nan
 	if Species == 'H':
 		#attempt to refit the spectrum with a kappa distribution
+		out.nk[:] = np.nan
+		out.tk[:] = np.nan
+		out.k[:] = np.nan
+		out.pk[:] = np.nan
 		for i in range(0,n):
 			#save efficiency
 			out[i].Efficiency[:] = Eff
@@ -753,18 +775,20 @@ def _Combine10sDateSpecies(Date,Species='H',Overwrite=False):
 				T0 = out[i].t*1e6
 
 			#now try fitting
-			nTK = FitKappaDistCts(out.VBins[i]*1000.0,out.Counts[i],n0,T0,dOmega,mass,Eff,1,out[i].Tau,g)
+			try:
+				nTK = FitKappaDistCts(
+					out.VBins[i]*1000.0,out.Counts[i],n0,T0,dOmega,
+					mass,Eff,1,out[i].Tau,g
+				)
+			except Exception:
+				#A failed optional fit must not prevent the measured data being saved.
+				continue
 			#check that the values are all positive at least
-			if nTK[0] > 0 and nTK[1] > 0 and nTK[2] > 0:
+			if len(nTK) == 3 and np.all(np.isfinite(nTK)) and np.all(np.asarray(nTK) > 0):
 				out[i].nk = nTK[0]/1e6
 				out[i].tk = nTK[1]/1e6
 				out[i].k = nTK[2]
 				out[i].pk = nTK[0]*kB*nTK[1]*1e9
-			else:
-				out[i].nk = np.nan
-				out[i].tk = np.nan
-				out[i].k = np.nan
-				out[i].pk = np.nan
 
 	if out.size > 0:
 		RT.SaveRecarray(out,fname)

@@ -118,7 +118,7 @@ dtype60s = [('Date','int32'),				#Date in format yyyymmdd
 			('ScanType','int8'),			#Scan Type is either 0 or 2 to determine energy bin ranges
 			('NSpec','int32'),				#Number of spectra combined
 			('Tau','float32'),				#Tau parameter - dwell time on each energy bin
-			('CDRQuality','int16',(7,)),	#CDR data quality flag (0 = good, I think)
+			('CDRQuality','uint16',(7,)),	#16-bit CDR quality flags; 65535 = not present
 			('NTPQuality','int16'),			#NTP data quality flag (0 = good)
 			('Ion','U3'),					#Species of ion
 			('HasNTP','bool'),				#Whether this spectrum has an NTP fit
@@ -151,7 +151,7 @@ dtype10s = [('Date','int32'),
 			('StartIndex','int32'),
 			('ScanType','int8'),
 			('Tau','float32'),
-			('CDRQuality','int16'),
+			('CDRQuality','uint16'),		#16-bit CDR quality flags; 65535 = not present
 			('NTPQuality','int16'),
 			('Ion','U3'),
 			('HasNTP','bool'),
