@@ -7,6 +7,7 @@ import DateTimeTools as TT
 
 from .GetData import GetData
 from .PlotFIPS import _Axes
+from .. import Globals
 
 
 Spectra = {
@@ -20,6 +21,8 @@ Spectra = {
 }
 
 _SpectrumAliases = {name.lower(): name for name in Spectra}
+
+_FluxLabel = 'Differential energy flux ((keV/e)$^{-1}$ s$^{-1}$ cm$^{-2}$ sr$^{-1}$)'
 
 Coordinates = {
 	'Energy': ('Energy/charge (keV/e)', 'EQBins'),
@@ -38,11 +41,11 @@ _CoordinateAliases = {
 }
 
 
-def _WithGaps(time,coordinate,spectra,MaxGap):
+def _WithGaps(time,coordinate,spectra,MaxGap,SecondsPerUnit=3600.0):
 	"""Insert empty columns so pcolormesh does not bridge data gaps."""
 	if MaxGap is None or time.size < 2:
 		return time,coordinate,spectra
-	gaps = np.where(np.diff(time) > MaxGap/3600.0)[0]
+	gaps = np.where(np.diff(time) > MaxGap/SecondsPerUnit)[0]
 	if gaps.size == 0:
 		return time,coordinate,spectra
 
@@ -80,7 +83,90 @@ def _Norm(values,zlog,vmin,vmax):
 	return LogNorm(vmin=vmin,vmax=vmax) if zlog else Normalize(vmin=vmin,vmax=vmax)
 
 
-def PlotFIPSSpectrogram(Date,ut,Param='Flux',Y='Energy',fig=None,
+def _Spectrum(Type,Param,fields):
+	"""Resolve user-facing parameters onto each PDS/combined product."""
+	product = str(Type).lower()
+	requested = '' if Param is None else str(Param).lower()
+	if product == 'edr':
+		if requested not in ('','counts','rate','protonrate','proton_rate'):
+			raise ValueError('EDR supports Param="ProtonRate" (or "Counts")')
+		return 'Proton rate','ProtonRate','H'
+	if product == 'cdr':
+		if requested not in ('','flux','protonflux','proton_flux'):
+			raise ValueError('CDR supports Param="ProtonFlux" (or "Flux")')
+		return _FluxLabel,'ProtonFlux','H'
+	if product == 'espec':
+		aliases = {
+			'':'H','flux':'H','h':'H','hflux':'H',
+			'he2':'He2','he2flux':'He2','he++':'He2',
+			'he':'He','heflux':'He',
+			'na':'Na','naflux':'Na','na_group':'Na',
+			'o':'O','oflux':'O','o_group':'O',
+		}
+		ion = aliases.get(requested)
+		if ion is None:
+			raise ValueError(
+				'ESPEC Param must be H, He2, He, Na or O (optionally suffixed Flux)'
+			)
+		return '{} {}'.format(ion,_FluxLabel),'{}Flux'.format(ion),ion
+
+	parameter = 'Flux' if Param is None else _SpectrumAliases.get(requested)
+	if parameter is None:
+		raise ValueError(
+			'Unknown spectral parameter {!r}; choose from {}'.format(
+				Param,', '.join(Spectra)
+			)
+		)
+	label,field = Spectra[parameter]
+	if field not in fields:
+		raise ValueError('{:s} data do not contain the {:s} spectrum'.format(Type,field))
+	return label,field,'H'
+
+
+def _MatchScanType(Date,ut,data):
+	"""Match ESPEC records to the nearest EDR scan using mission time."""
+	edr = GetData(Date,ut=ut,Type='edr',Verbose=False)
+	if edr.size == 0:
+		raise ValueError('Cannot reconstruct ESPEC bins because no matching EDR data exist')
+	edr_met = np.asarray(edr.MET,dtype='float64')
+	order = np.argsort(edr_met)
+	edr_met = edr_met[order]
+	scan_type = np.asarray(edr.ScanType)[order]
+	met = np.asarray(data.MET,dtype='float64')
+	position = np.searchsorted(edr_met,met)
+	position = np.clip(position,0,edr_met.size - 1)
+	previous = np.maximum(position - 1,0)
+	use_previous = (
+		np.abs(edr_met[previous] - met) <= np.abs(edr_met[position] - met)
+	)
+	position[use_previous] = previous[use_previous]
+	return scan_type[position]
+
+
+def _Coordinate(Date,ut,Type,data,coordinate_name,ion):
+	"""Load stored bins or reconstruct them from the appropriate scan table."""
+	field = Coordinates[coordinate_name][1]
+	fields = data.dtype.names or ()
+	if field in fields:
+		return np.asarray(data[field],dtype='float64')
+	if 'ScanType' in fields:
+		scan_type = np.asarray(data.ScanType)
+	elif str(Type).lower() == 'espec':
+		scan_type = _MatchScanType(Date,ut,data)
+	else:
+		raise ValueError('Cannot reconstruct spectral bins without ScanType')
+
+	energy = np.vstack([
+		Globals.EQBins.get(int(value),Globals.EQBins[0]) for value in scan_type
+	]).astype('float64')
+	if coordinate_name == 'Energy':
+		return energy
+	mass = Globals.Constants.amu*Globals.IonMass[ion]
+	charge = 2.0 if ion == 'He2' else 1.0
+	return np.sqrt(charge*Globals.Constants.e*2000.0*energy/mass)/1000.0
+
+
+def PlotFIPSSpectrogram(Date,ut,Param=None,Y='Energy',fig=None,
 						maps=(1,1,0,0),ylog=True,zlog=True,no_x=False,
 						MaxGap=120.0,Type='60H',cmap='gnuplot',Colorbar=True,
 						vmin=None,vmax=None,**kwargs):
@@ -90,8 +176,10 @@ def PlotFIPSSpectrogram(Date,ut,Param='Flux',Y='Energy',fig=None,
 	----------
 	Date, ut
 		Date and UT selection accepted by :func:`PyMess.FIPS.GetData`.
-	Param : str
-		Spectral variable: ``Counts``, ``Flux``, ``PSD`` or ``Efficiency``.
+	Param : str, optional
+		Spectrum to plot. Defaults to proton rate for EDR, proton flux for
+		CDR, H flux for ESPEC, and flux for combined data. ESPEC also accepts
+		``He2``, ``He``, ``Na`` and ``O``.
 	Y : str
 		Vertical coordinate: ``Energy`` (energy/charge) or ``Velocity``.
 	fig, maps
@@ -103,7 +191,8 @@ def PlotFIPSSpectrogram(Date,ut,Param='Flux',Y='Energy',fig=None,
 	MaxGap : float or None
 		Insert empty columns across gaps larger than this many seconds.
 	Type : str
-		Combined-data type, such as ``60H``, ``60He`` or ``10H``.
+		Data product, including ``edr``, ``cdr``, ``espec`` and combined
+		types such as ``60H``, ``60He`` or ``10H``.
 	cmap : str or Colormap
 		Matplotlib colour map; defaults to ``gnuplot``.
 	Colorbar : bool
@@ -117,13 +206,6 @@ def PlotFIPSSpectrogram(Date,ut,Param='Flux',Y='Energy',fig=None,
 	-------
 	matplotlib.axes.Axes
 	"""
-	parameter = _SpectrumAliases.get(str(Param).lower())
-	if parameter is None:
-		raise ValueError(
-			'Unknown spectral parameter {!r}; choose from {}'.format(
-				Param,', '.join(Spectra)
-			)
-		)
 	coordinate_name = _CoordinateAliases.get(str(Y).lower())
 	if coordinate_name is None:
 		raise ValueError('Unknown vertical coordinate {!r}; choose Energy or Velocity'.format(Y))
@@ -132,16 +214,28 @@ def PlotFIPSSpectrogram(Date,ut,Param='Flux',Y='Energy',fig=None,
 	if data.size == 0:
 		raise ValueError('No {:s} FIPS data found in the requested interval'.format(Type))
 
-	color_label,field = Spectra[parameter]
+	fields = data.dtype.names or ()
+	color_label,field,ion = _Spectrum(Type,Param,fields)
 	ylabel,coordinate_field = Coordinates[coordinate_name]
-	time = np.asarray(data.utc,dtype='float64')
-	coordinate = np.asarray(data[coordinate_field],dtype='float64')
+	if 'utc' in fields:
+		time = np.asarray(data.utc,dtype='float64')
+		time_format = 'utc'
+		seconds_per_unit = 3600.0
+	elif 'MET' in fields:
+		time = np.asarray(data.MET,dtype='float64')
+		time_format = 'met'
+		seconds_per_unit = 1.0
+	else:
+		raise ValueError('FIPS data contain neither a utc nor MET time field')
+	coordinate = _Coordinate(Date,ut,Type,data,coordinate_name,ion)
 	values = np.asarray(data[field],dtype='float64')
 	order = np.argsort(time)
 	time = time[order]
 	coordinate = coordinate[order]
 	values = values[order]
-	time,coordinate,values = _WithGaps(time,coordinate,values,MaxGap)
+	time,coordinate,values = _WithGaps(
+		time,coordinate,values,MaxGap,SecondsPerUnit=seconds_per_unit
+	)
 
 	# FIPS bins are stored from high to low energy; pcolormesh is clearer
 	# with the vertical coordinate ordered from low to high.
@@ -168,9 +262,11 @@ def PlotFIPSSpectrogram(Date,ut,Param='Flux',Y='Energy',fig=None,
 	if no_x:
 		ax.tick_params(axis='x',which='both',bottom=False,labelbottom=False)
 		ax.set_xlabel('')
-	else:
+	elif time_format == 'utc':
 		TT.DTPlotLabel(ax,Seconds=False,IncludeYear=False)
 		ax.set_xlabel('UT')
+	else:
+		ax.set_xlabel('MET (s)')
 
 	if Colorbar:
 		colorbar = ax.figure.colorbar(mesh,ax=ax,pad=0.02)

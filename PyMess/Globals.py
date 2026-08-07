@@ -12,6 +12,14 @@ else:
 #mission elapsed time
 MET = None
 
+# FIPS mission-elapsed-time epochs, expressed as Unix seconds at MET=0.
+# The instrument counter reset between 2013-01-08 and 2013-01-09, so both
+# epochs are required to reconstruct calendar time over the full archive.
+# Values were derived from the first CDR record in each counter era.
+FIPSMET0Unix = 1091512556.375
+FIPSMETResetDate = 20130109
+FIPSMETResetUnix = 1357676000.191
+
 #Store loaded MAG data in memory for quick access
 LoadedMAGData = {}
 LoadedMAGRotatedData = {}
