@@ -169,7 +169,7 @@ def _Coordinate(Date,ut,Type,data,coordinate_name,ion):
 def PlotFIPSSpectrogram(Date,ut,Param=None,Y='Energy',fig=None,
 						maps=(1,1,0,0),ylog=True,zlog=True,no_x=False,
 						MaxGap=120.0,Type='60H',cmap='gnuplot',Colorbar=True,
-						vmin=None,vmax=None,**kwargs):
+						vmin=None,vmax=None,data=None,**kwargs):
 	"""Plot a time series of combined FIPS spectra as a two-dimensional grid.
 
 	Parameters
@@ -199,6 +199,8 @@ def PlotFIPSSpectrogram(Date,ut,Param=None,Y='Energy',fig=None,
 		Add a labelled colour bar when true.
 	vmin, vmax : float, optional
 		Colour normalization bounds.
+	data : numpy.recarray, optional
+		Preloaded data used internally by compound plotting functions.
 	**kwargs
 		Additional arguments passed to ``Axes.pcolormesh``.
 
@@ -210,7 +212,8 @@ def PlotFIPSSpectrogram(Date,ut,Param=None,Y='Energy',fig=None,
 	if coordinate_name is None:
 		raise ValueError('Unknown vertical coordinate {!r}; choose Energy or Velocity'.format(Y))
 
-	data = GetData(Date,ut=ut,Type=Type,Verbose=False)
+	if data is None:
+		data = GetData(Date,ut=ut,Type=Type,Verbose=False)
 	if data.size == 0:
 		raise ValueError('No {:s} FIPS data found in the requested interval'.format(Type))
 

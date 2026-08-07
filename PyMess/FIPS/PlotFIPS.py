@@ -46,7 +46,7 @@ def _Axes(fig, maps):
 
 
 def PlotFIPS(Date,ut,Param='nk',fig=None,maps=(1,1,0,0),ylog=False,
-			 no_x=False,MaxGap=120.0,Type='60H',**kwargs):
+			 no_x=False,MaxGap=120.0,Type='60H',data=None,**kwargs):
 	"""Plot one combined FIPS plasma parameter over a requested time range.
 
 	Parameters
@@ -70,6 +70,8 @@ def PlotFIPS(Date,ut,Param='nk',fig=None,maps=(1,1,0,0),ylog=False,
 		Break connecting lines across gaps larger than this many seconds.
 	Type : str
 		Combined-data type passed to :func:`GetData`; defaults to ``60H``.
+	data : numpy.recarray, optional
+		Preloaded data used internally by compound plotting functions.
 	**kwargs
 		Additional keyword arguments passed to ``Axes.plot``.
 
@@ -85,7 +87,8 @@ def PlotFIPS(Date,ut,Param='nk',fig=None,maps=(1,1,0,0),ylog=False,
 			)
 		)
 
-	data = GetData(Date,ut=ut,Type=Type,Verbose=False)
+	if data is None:
+		data = GetData(Date,ut=ut,Type=Type,Verbose=False)
 	if data.size == 0:
 		raise ValueError('No {:s} FIPS data found in the requested interval'.format(Type))
 
