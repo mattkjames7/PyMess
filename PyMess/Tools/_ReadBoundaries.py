@@ -2,7 +2,7 @@ import numpy as np
 import PyFileIO as pf
 from .. import Globals
 import RecarrayTools as RT
-from .ContUT import ContUT
+import DateTimeTools as TT
 
 def _ReadBoundaries():
 	
@@ -27,8 +27,8 @@ def _ReadBoundaries():
 	data = RT.JoinRecarray(mdata,bdata)
 
 	#sort the data
-	utc = ContUT(data.Date,data.ut)
-	srt = np.argsort(utc)
+	unix = TT.UnixTime(data.Date,data.ut)
+	srt = np.argsort(unix)
 	data = data[srt]
 	
 	return data

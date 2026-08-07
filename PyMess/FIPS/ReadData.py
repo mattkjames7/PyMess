@@ -2,6 +2,7 @@ import numpy as np
 import os
 from .. import Globals
 import RecarrayTools as RT
+import DateTimeTools as TT
 
 dtypeedr = [('MET','>u4'),('ScanType','>u2'),('ProtonRate','>u4',(64,))]
 
@@ -73,4 +74,8 @@ def ReadData(Date,Type='60H',Length=False,quiet=False):
 		f.close()
 		return l
 	else:
-		return RT.ReadRecarray(fname,dtype)
+		data = RT.ReadRecarray(fname,dtype)
+		if Type in ('60H','60He','60He2','60Na','60O','10H'):
+			#Reconstruct this slot when reading legacy continuous-UT files.
+			data.unix = TT.UnixTime(data.Date,data.ut)
+		return data

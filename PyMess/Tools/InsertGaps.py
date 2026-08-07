@@ -1,6 +1,6 @@
 import numpy as np
 
-def InsertGaps(t,x,MaxGap=120):
+def InsertGaps(t,x,MaxGap=120,SecondsPerUnit=3600.0):
 	'''
 	Inserts NaNs between gaps in time greater than MaxGap so that the 
 	plot line has a split.
@@ -9,14 +9,15 @@ def InsertGaps(t,x,MaxGap=120):
 		t: Time array in hours.
 		x: Array of data to be plotted
 		MaxGap: Maximum gap size in seconds.
+		SecondsPerUnit: Number of seconds represented by one unit of ``t``.
 		
 	Outputs:
 		newt: New time axis with length t.size + number of gaps added
 		newx: new data array corresponding to newt
 	
 	'''
-	#convert maxgap from seconds to hours
-	mg = MaxGap/3600.0
+	#convert the gap threshold from seconds to the units used by t
+	mg = MaxGap/float(SecondsPerUnit)
 	
 	#locate where gaps should be inserted
 	I = np.where((t[1:] - t[:-1]) > mg)[0]

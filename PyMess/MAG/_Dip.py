@@ -57,7 +57,7 @@ def _Dip(Date,Minute=False):
 	
 	out.Date = data.Date
 	out.ut = data.ut
-	out.utc = data.utc
+	out.unix = data.unix
 	out.Bpol = b1
 	out.Btor = b2
 	out.Bpar = b3

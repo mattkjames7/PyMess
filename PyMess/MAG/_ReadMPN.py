@@ -3,6 +3,7 @@ from RecarrayTools.ReadRecarray import ReadRecarray
 import os
 from ..Tools.ResampleTimeSeries import ResampleTimeSeries
 from ._SaveMPN import _SaveMPN
+import DateTimeTools as TT
 
 def _ReadMPN(Date,Minute=False,res=None,DetectGaps=None,Autosave=True,Length=False):
 	'''
@@ -37,6 +38,7 @@ def _ReadMPN(Date,Minute=False,res=None,DetectGaps=None,Autosave=True,Length=Fal
 		f.close()
 		return n		
 	data = ReadRecarray(fname,dtype)
+	data.unix = TT.UnixTime(data.Date,data.ut)
 
 
 	if res != None:
@@ -57,6 +59,7 @@ def _ReadMPN(Date,Minute=False,res=None,DetectGaps=None,Autosave=True,Length=Fal
 		for t in tags:
 			if not t in ['Date','ut']:
 				newdata[t] = ResampleTimeSeries(data.ut,data[t],newdata.ut,DG/3600.0,UseSpline=True)
+		newdata.unix = TT.UnixTime(newdata.Date,newdata.ut)
 
 		if DetectGaps != None:
 			#set Detect gaps to the largest number of seconds gap (5s is used elsewhere)

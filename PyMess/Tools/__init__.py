@@ -9,5 +9,4 @@ from .SearchForFolder import SearchForFolder
 from .FileSearch import FileSearch
 from .Gamma.Gamma import Gamma
 from .MatchUT import MatchUT
-from .ContUT import ContUT
 from .GetBoundaries import GetBoundaries

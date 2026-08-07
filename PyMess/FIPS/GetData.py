@@ -5,11 +5,9 @@ import DateTimeTools as TT
 
 
 def _AppendTimeFields(data,FileDate):
-	"""Add Date, UT and continuous-UT fields to MET-only FIPS data."""
+	"""Add calendar fields and ensure that Unix time is current."""
 	fields = data.dtype.names or ()
-	missing = [name for name in ('Date','ut','utc') if name not in fields]
-	if not missing:
-		return data
+	missing = [name for name in ('Date','ut','unix') if name not in fields]
 
 	if ('Date' not in fields or 'ut' not in fields) and 'MET' not in fields:
 		raise ValueError('FIPS data contain neither calendar time nor MET')
@@ -28,9 +26,12 @@ def _AppendTimeFields(data,FileDate):
 		)
 		date = np.asarray(date,dtype='int32')
 		ut = np.asarray(ut,dtype='float32')
-	utc = np.asarray(TT.ContUT(date,ut),dtype='float64')
+	unix = np.asarray(TT.UnixTime(date,ut),dtype='float64')
+	if not missing:
+		data.unix = unix
+		return data
 
-	add_dtype = {'Date':'int32','ut':'float32','utc':'float64'}
+	add_dtype = {'Date':'int32','ut':'float32','unix':'float64'}
 	dtype = list(data.dtype.descr) + [(name,add_dtype[name]) for name in missing]
 	out = np.recarray(data.size,dtype=dtype)
 	for name in fields:
@@ -39,8 +40,8 @@ def _AppendTimeFields(data,FileDate):
 		out.Date = date
 	if 'ut' in missing:
 		out.ut = ut
-	if 'utc' in missing:
-		out.utc = utc
+	if 'unix' in missing:
+		out.unix = unix
 	return out
 
 def GetData(Date,ut=[0.0,24.0],Type='60H',Verbose=True):

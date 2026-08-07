@@ -1,4 +1,5 @@
 import RecarrayTools as RT
+import DateTimeTools as TT
 from .. import Globals
 
 def _ReadMercuryPos():
@@ -9,7 +10,7 @@ def _ReadMercuryPos():
 	#a common dtype used for storing position
 	dtype = [	('Date','int32'),
 				('ut','float32'),
-				('utc','float64'),
+				('unix','float64'),
 				('xHCI','float64'),
 				('yHCI','float64'),
 				('zHCI','float64'),
@@ -23,5 +24,6 @@ def _ReadMercuryPos():
 				('LonIAU_SUN','float32')]
 	fname = Globals.ModulePath +'/__data/MercuryPosSmall.bin'
 	data = RT.ReadRecarray(fname,dtype=dtype)
+	data.unix = TT.UnixTime(data.Date,data.ut)
 	
 	return data

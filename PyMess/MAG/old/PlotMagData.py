@@ -8,7 +8,6 @@ import KT17 as kt17
 from .. import Globals
 import DateTimeTools as TT
 import RecarrayTools as RT
-from ..Tools.DTPlotLabel import DTPlotLabel
 from scipy.interpolate import interp1d,InterpolatedUnivariateSpline
 from ..Pos.GetAberrationAngle import GetAberrationAngle
 from ..Magnetopause.OverlayMP import OverlayMP
@@ -113,16 +112,11 @@ def PlotMagData(Date,ut=[0,24.0],MagType='MSM',Ab=None,Minute=False,Bmag=True,Re
 	#also going to extract other variables we need from the data object
 	Date = data.Date
 	UT = data.ut
-	UTc = np.copy(UT)
+	UTc = TT.UnixTime(Date,UT)
 	B0 = data[DataLabels[0]]
 	B1 = data[DataLabels[1]]
 	B2 = data[DataLabels[2]]
 	Zmsm = data.Zmsm
-
-	day = np.where(Date[1:] != Date[:-1])[0]
-	for i in range(0,day.size):
-		dd = TT.DateDifference(Date[day[i]],Date[day[i]+1])
-		UTc[day[i]+1:] += dd*24.0
 
 	#detrend data if needed
 	if Detrend == True:
@@ -170,7 +164,7 @@ def PlotMagData(Date,ut=[0,24.0],MagType='MSM',Ab=None,Minute=False,Bmag=True,Re
 		ax.plot(UTc,B[i],color=colors[i],label=PlotLabels[i],linewidth=1.0)
 	fig.plot([UTc[0],UTc[-1]],[0.0,0.0],color=[0.0,0.0,0.0],linestyle='-',linewidth=1.0)
 	if Bmag == True:		
-		fig.plot(UTc,Bm,color=[0.0,0.0,0.0],label='$\pm \mathbf{|B|}$',linewidth=1.0)
+		fig.plot(UTc,Bm,color=[0.0,0.0,0.0],label=r'$\pm \mathbf{|B|}$',linewidth=1.0)
 		fig.plot(UTc,-Bm,color=[0.0,0.0,0.0],linewidth=1.0)
 	
 	#show the model field if desired
@@ -220,13 +214,13 @@ def PlotMagData(Date,ut=[0,24.0],MagType='MSM',Ab=None,Minute=False,Bmag=True,Re
 	ax=fig.gca()
 	
 	if noxlabel == False:
-		DTPlotLabel(ax,UTc,Date,Seconds=False,IncludeYear=False)
+		TT.DTPlotLabel(ax,Seconds=False,IncludeYear=False,TimeFMT='unix')
 		fig.xlabel('UT')
 	else:
 		ax.xaxis.set_visible(False)
 		
 
-	fig.ylabel('$\mathbf{B}$ (nT)')
+	fig.ylabel(r'$\mathbf{B}$ (nT)')
 	
 	if LegLoc[:3] == 'out':
 		ll = LegLoc.split()[1]
@@ -254,5 +248,3 @@ def PlotMagData(Date,ut=[0,24.0],MagType='MSM',Ab=None,Minute=False,Bmag=True,Re
 		legend.get_frame().set_facecolor([1.0,1.0,1.0,1.0])
 		legend.get_frame().set_edgecolor([0.0,0.0,0.0,1.0])
 	return fig
-
-

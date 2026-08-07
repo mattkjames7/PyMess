@@ -5,6 +5,7 @@ import os
 from ..Pos.GetAberrationAngle import GetAberrationAngle
 from .. import Globals
 import RecarrayTools as RT
+import DateTimeTools as TT
 from . import MagGlobals
 
 
@@ -53,6 +54,8 @@ def _ReadMSM(Date,Minute=False,res=None,Ab=None,DetectGaps=None,Length=False):
 		f.close()
 		return n
 	data = RT.ReadRecarray(path+fname,dtype)
+	#Legacy files occupy the same float64 slot but contain continuous UT.
+	data.unix = TT.UnixTime(data.Date,data.ut)
 
 	if Ab is None:
 		tmp = GetAberrationAngle(Date)
@@ -79,6 +82,7 @@ def _ReadMSM(Date,Minute=False,res=None,Ab=None,DetectGaps=None,Length=False):
 			if not t in ['Date','ut']:
 				f = InterpolatedUnivariateSpline(data.ut,data[t])
 				newdata[t] = f(newdata.ut)
+		newdata.unix = TT.UnixTime(newdata.Date,newdata.ut)
 
 		if DetectGaps != None:
 			#set Detect gaps to the largest number of seconds gap (5s is used elsewhere)

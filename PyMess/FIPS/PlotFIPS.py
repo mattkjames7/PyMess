@@ -90,13 +90,15 @@ def PlotFIPS(Date,ut,Param='nk',fig=None,maps=(1,1,0,0),ylog=False,
 		raise ValueError('No {:s} FIPS data found in the requested interval'.format(Type))
 
 	label,field,color = Parameters[Param]
-	time = np.asarray(data.utc,dtype='float64')
+	time = np.asarray(data.unix,dtype='float64')
 	values = np.asarray(data[field],dtype='float64')
 	order = np.argsort(time)
 	time = time[order]
 	values = values[order]
 	if MaxGap is not None:
-		time,values = InsertGaps(time,values,MaxGap=MaxGap)
+		time,values = InsertGaps(
+			time,values,MaxGap=MaxGap,SecondsPerUnit=1.0
+		)
 
 	ax = _Axes(fig,maps)
 	if 'ms' not in kwargs and 'markersize' not in kwargs:
@@ -113,6 +115,6 @@ def PlotFIPS(Date,ut,Param='nk',fig=None,maps=(1,1,0,0),ylog=False,
 		ax.tick_params(axis='x',which='both',bottom=False,labelbottom=False)
 		ax.set_xlabel('')
 	else:
-		TT.DTPlotLabel(ax,Seconds=False,IncludeYear=False)
+		TT.DTPlotLabel(ax,Seconds=False,IncludeYear=False,TimeFMT='unix')
 		ax.set_xlabel('UT')
 	return ax

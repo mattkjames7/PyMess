@@ -105,7 +105,7 @@ class Constants(object):
 #FIPS dtypes
 dtype60s = [('Date','int32'),				#Date in format yyyymmdd
 			('ut','float32'),				#UT time since begining of day in hours
-			('utc','float64'),				#continuous time
+			('unix','float64'),				#Unix time in seconds
 			('x','float32'),				#x MSM
 			('y','float32'),				#y MSM
 			('z','float32'),				#z MSM
@@ -142,7 +142,7 @@ dtype60s = [('Date','int32'),				#Date in format yyyymmdd
 
 dtype10s = [('Date','int32'),
 			('ut','float32'),
-			('utc','float64'),				#continuous time
+			('unix','float64'),				#Unix time in seconds
 			('x','float32'),				#x MSM
 			('y','float32'),				#y MSM
 			('z','float32'),				#z MSM

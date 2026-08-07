@@ -1,5 +1,7 @@
 import PyFileIO as pf
 from .. import Globals
+import DateTimeTools as TT
+import numpy as np
 
 def _ReadMercurySpeed():
 	'''
@@ -8,6 +10,7 @@ def _ReadMercurySpeed():
 	'''
 	
 	fname = Globals.ModulePath +'/__data/MercurySpeed.dat'
-	data = pf.ReadASCIIData(fname,Header=True,dtype=[('Date','int32'),('utc','float64'),('v','float32')])
+	data = pf.ReadASCIIData(fname,Header=True,dtype=[('Date','int32'),('unix','float64'),('v','float32')])
+	data.unix = TT.UnixTime(data.Date,np.zeros(data.size))
 	
 	return data

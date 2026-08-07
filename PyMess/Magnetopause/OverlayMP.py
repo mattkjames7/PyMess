@@ -2,7 +2,6 @@ import numpy as np
 import DateTimeTools as TT
 from .. import Globals
 from .GetMPCrossings import GetMPCrossings
-from ..Tools.ContUT import ContUT
 
 def OverlayMP(ax,Date,ShadeCrossings=True,UseLabel=True):
 	'''
@@ -27,8 +26,8 @@ def OverlayMP(ax,Date,ShadeCrossings=True,UseLabel=True):
 		#starting at 0 at midnight on the first day, ending at 24*No of days
 		#in total. Anything outside of the plot range shouldn't show up 
 		#(in theory anyway)
-		ut0 = TT.ContUT(MPData.Date0,MPData.ut0)
-		ut1 = TT.ContUT(MPData.Date1,MPData.ut1)
+		ut0 = TT.UnixTime(MPData.Date0,MPData.ut0)
+		ut1 = TT.UnixTime(MPData.Date1,MPData.ut1)
 			
 		print(ut0,ut1)
 		print(ax.get_xlim())

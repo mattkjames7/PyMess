@@ -117,7 +117,7 @@ def PlotData(Date,ut=[0,24.0],Type='MSM',**kwargs):
 	#also going to extract other variables we need from the data object
 	Dates = data.Date
 	UT = data.ut
-	UTc = data.utc
+	UTc = data.unix
 	B0 = data[DataLabels[0]]
 	B1 = data[DataLabels[1]]
 	B2 = data[DataLabels[2]]
@@ -173,7 +173,7 @@ def PlotData(Date,ut=[0,24.0],Type='MSM',**kwargs):
 		ax.plot(UTc,B[i],color=colors[i],label=PlotLabels[i],linewidth=1.0)
 	fig.plot([UTc[0],UTc[-1]],[0.0,0.0],color=[0.0,0.0,0.0],linestyle='-',linewidth=1.0)
 	if kwargs.get('Bmag',defargs['Bmag']) == True:		
-		fig.plot(UTc,Bm,color=[0.0,0.0,0.0],label='$\pm \mathbf{|B|}$',linewidth=1.0)
+		fig.plot(UTc,Bm,color=[0.0,0.0,0.0],label=r'$\pm \mathbf{|B|}$',linewidth=1.0)
 		fig.plot(UTc,-Bm,color=[0.0,0.0,0.0],linewidth=1.0)
 	
 	#show the model field if desired
@@ -224,13 +224,13 @@ def PlotData(Date,ut=[0,24.0],Type='MSM',**kwargs):
 	ax=fig.gca()
 	
 	if kwargs.get('noxlabel',defargs['noxlabel']) == False:
-		TT.DTPlotLabel(ax,Seconds=False,IncludeYear=False)
+		TT.DTPlotLabel(ax,Seconds=False,IncludeYear=False,TimeFMT='unix')
 		fig.xlabel('UT')
 	else:
 		ax.xaxis.set_visible(False)
 		
 
-	fig.ylabel('$\mathbf{B}$ (nT)')
+	fig.ylabel(r'$\mathbf{B}$ (nT)')
 	
 	LegLoc = kwargs.get('LegLoc',defargs['LegLoc'])
 	LegSize = kwargs.get('LegSize',defargs['LegSize'])
@@ -261,5 +261,3 @@ def PlotData(Date,ut=[0,24.0],Type='MSM',**kwargs):
 		legend.get_frame().set_facecolor([1.0,1.0,1.0,1.0])
 		legend.get_frame().set_edgecolor([0.0,0.0,0.0,1.0])
 	return ax
-
-

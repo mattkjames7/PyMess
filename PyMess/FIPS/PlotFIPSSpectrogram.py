@@ -217,16 +217,16 @@ def PlotFIPSSpectrogram(Date,ut,Param=None,Y='Energy',fig=None,
 	fields = data.dtype.names or ()
 	color_label,field,ion = _Spectrum(Type,Param,fields)
 	ylabel,coordinate_field = Coordinates[coordinate_name]
-	if 'utc' in fields:
-		time = np.asarray(data.utc,dtype='float64')
-		time_format = 'utc'
-		seconds_per_unit = 3600.0
+	if 'unix' in fields:
+		time = np.asarray(data.unix,dtype='float64')
+		time_format = 'unix'
+		seconds_per_unit = 1.0
 	elif 'MET' in fields:
 		time = np.asarray(data.MET,dtype='float64')
 		time_format = 'met'
 		seconds_per_unit = 1.0
 	else:
-		raise ValueError('FIPS data contain neither a utc nor MET time field')
+		raise ValueError('FIPS data contain neither a unix nor MET time field')
 	coordinate = _Coordinate(Date,ut,Type,data,coordinate_name,ion)
 	values = np.asarray(data[field],dtype='float64')
 	order = np.argsort(time)
@@ -262,8 +262,8 @@ def PlotFIPSSpectrogram(Date,ut,Param=None,Y='Energy',fig=None,
 	if no_x:
 		ax.tick_params(axis='x',which='both',bottom=False,labelbottom=False)
 		ax.set_xlabel('')
-	elif time_format == 'utc':
-		TT.DTPlotLabel(ax,Seconds=False,IncludeYear=False)
+	elif time_format == 'unix':
+		TT.DTPlotLabel(ax,Seconds=False,IncludeYear=False,TimeFMT='unix')
 		ax.set_xlabel('UT')
 	else:
 		ax.set_xlabel('MET (s)')

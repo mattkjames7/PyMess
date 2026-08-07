@@ -46,7 +46,7 @@ def PlotMPCrossingMagData(Crossing,MagType='MSM',Ab=None,Minute=False,Rsm=1.42,P
 		DataLabels = ['Bpol','Btor','Bpar']
 		TwinAx = False
 	elif MagType == 'B.Bmp':
-		PlotLabels = ['$B \cdot B_{MP}$','Angle ($^{\circ}$)']
+		PlotLabels = [r'$B \cdot B_{MP}$',r'Angle ($^{\circ}$)']
 		DataLabels = ['BdotBmp','Angle']	
 		TwinAx = True	
 	else:
@@ -60,12 +60,7 @@ def PlotMPCrossingMagData(Crossing,MagType='MSM',Ab=None,Minute=False,Rsm=1.42,P
 	data = MPCrossingMagData(Crossing,MagType,Ab,Minute,Res,Rsm,Padding,MagType=MagType)
 
 	#create a continuous time axis
-	utc = np.copy(data.utc)
-	neg = np.where(utc[1:] < utc[:-1])[0]
-	if neg.size > 0:
-		for i in range(0,neg,size):
-			dd = TT.DateDifference(data.Date[neg[i]],data.date[neg[i]+1])
-			utc[neg[i]+1] += 24.0*dd
+	unix = np.copy(data.unix)
 			
 
 	#create plot
@@ -76,36 +71,36 @@ def PlotMPCrossingMagData(Crossing,MagType='MSM',Ab=None,Minute=False,Rsm=1.42,P
 	
 	if TwinAx:
 		#plot two axis for B.Bmp
-		ax.plot(utc,data[DataLabels[0]],color=[1.0,0.5,0.0],linewidth=1.0,label=PlotLabels[0])
+		ax.plot(unix,data[DataLabels[0]],color=[1.0,0.5,0.0],linewidth=1.0,label=PlotLabels[0])
 		R = fig.axis()
-		ax.axis([utc[0],utc[-1],R[2],R[3]])
+		ax.axis([unix[0],unix[-1],R[2],R[3]])
 		ax.set_ylabel(PlotLabels[0])
 		axt = ax.twinx()
-		axt.plot(utc,data[DataLabels[1]],color=[1.0,0.5,0.5],linewidth=1.0,label=PlotLabels[1])
-		axt.axis([utc[0],utc[-1],0.0,180.0])
+		axt.plot(unix,data[DataLabels[1]],color=[1.0,0.5,0.5],linewidth=1.0,label=PlotLabels[1])
+		axt.axis([unix[0],unix[-1],0.0,180.0])
 		axt.set_ylabel(PlotLabels[1])
 	else:
 		#ordinary cartesian data
 		colors = [[1.0,0.0,0.0],[0.0,1.0,0.0],[0.0,0.0,1.0]]
 		Bm = np.zeros(data.size,dtype='float32')
 		for i in range(0,3):
-			ax.plot(utc,data[DataLabels[i]],color=colors[i],label=PlotLabels[i],linewidth=1.0)
+			ax.plot(unix,data[DataLabels[i]],color=colors[i],label=PlotLabels[i],linewidth=1.0)
 			Bm += data[DataLabels[i]]**2
 		Bm = np.sqrt(Bm)
-		ax.plot(utc,data[DataLabels[i]],color=[0.0,0.0,0.0],label='|B|',linewidth=1.0)
-		ax.plot(utc,-data[DataLabels[i]],color=[0.0,0.0,0.0],linewidth=1.0)
+		ax.plot(unix,data[DataLabels[i]],color=[0.0,0.0,0.0],label='|B|',linewidth=1.0)
+		ax.plot(unix,-data[DataLabels[i]],color=[0.0,0.0,0.0],linewidth=1.0)
 
 
-		ax.hlines(0.0,np.nanmin(utc),np.nanmax(utc),linestyle='--',linewidth=1.0,color=[0.0,0.0,0.0])
+		ax.hlines(0.0,np.nanmin(unix),np.nanmax(unix),linestyle='--',linewidth=1.0,color=[0.0,0.0,0.0])
 	
 		R = fig.axis()
-		ax.axis([np.nanmin(utc),np.nanmax(utc),R[2],R[3]])
+		ax.axis([np.nanmin(unix),np.nanmax(unix),R[2],R[3]])
 		ax.set_ylabel('Magnetic Field')
 	
 	OverlayMP(ax,[data.Date[0],data.Date[-1]])
 
 	if noxlabel == False:
-		TT.DTPlotLabel(ax,Seconds=True)
+		TT.DTPlotLabel(ax,Seconds=True,TimeFMT='unix')
 		fig.xlabel('UT')
 	else:
 		ax.xaxis.set_visible(False)

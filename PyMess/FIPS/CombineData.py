@@ -10,7 +10,6 @@ from .FitKappaDist import FitKappaDistCts
 import os
 import RecarrayTools as RT
 from ..Tools.MatchUT import MatchUT
-from ..Tools.ContUT import ContUT
 from ..Pos.GetRegion import GetRegion
 from ..Pos.GetPosition import GetPosition
 from scipy.interpolate import interp1d
@@ -340,7 +339,7 @@ def _Combine60sDateSpecies(Date,Species='H',Overwrite=False,DryRun=False):
 	out.StopIndex = StopInd
 
 	#continuous ut
-	out.utc = ContUT(out.Date,out.ut)
+	out.unix = TT.UnixTime(out.Date,out.ut)
 
 	#position
 	pos = GetPosition(Date)
@@ -357,7 +356,7 @@ def _Combine60sDateSpecies(Date,Species='H',Overwrite=False,DryRun=False):
 		pos.z = np.nan
 
 	#location
-	out.Loc = GetRegion(out.Date,out.ut,out.utc)
+	out.Loc = GetRegion(out.Date,out.ut,out.unix)
 
 
 	#set default CDR quality flag
@@ -612,7 +611,7 @@ def _Combine10sDateSpecies(Date,Species='H',Overwrite=False):
 	out.ut = (out.MET-met0)/3600.0
 
 	#continuous ut
-	out.utc = ContUT(out.Date,out.ut)
+	out.unix = TT.UnixTime(out.Date,out.ut)
 
 	#position
 	pos = GetPosition(Date)
@@ -629,7 +628,7 @@ def _Combine10sDateSpecies(Date,Species='H',Overwrite=False):
 		pos.z = np.nan
 
 	#location
-	out.Loc = GetRegion(out.Date,out.ut,out.utc)
+	out.Loc = GetRegion(out.Date,out.ut,out.unix)
 
 
 
