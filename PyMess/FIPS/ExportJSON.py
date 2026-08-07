@@ -27,7 +27,7 @@ def _JSONValue(value):
 	return value
 
 
-def ExportJSON(Date,FileName,Type='60H'):
+def ExportJSON(Date,FileName,Type='60H',ut=(0.0,24.0)):
 	"""Export combined FIPS data to an indented JSON file.
 
 	Parameters
@@ -38,6 +38,9 @@ def ExportJSON(Date,FileName,Type='60H'):
 		Output JSON filename.
 	Type : str
 		Combined product: '60H', '60He', '60He2', '60Na', '60O' or '10H'.
+	ut : two-element array
+		UT range in hours. For a date range, the values limit the first
+		and last dates respectively.
 
 	Returns
 	=======
@@ -52,8 +55,10 @@ def ExportJSON(Date,FileName,Type='60H'):
 		)
 	if np.size(Date) not in (1,2):
 		raise ValueError('Date must be a single date or a two-date range')
+	if np.size(ut) != 2:
+		raise ValueError('ut must contain a start and stop time')
 
-	data = GetData(Date,Type=Type,Verbose=False)
+	data = GetData(Date,ut=ut,Type=Type,Verbose=False)
 	fields = data.dtype.names or ()
 	records = [
 		{name:_JSONValue(record[name]) for name in fields}
