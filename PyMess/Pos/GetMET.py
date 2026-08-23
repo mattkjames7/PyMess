@@ -48,14 +48,14 @@ def GetMET(Date=None,ut=None):
 		#that we want the MET for a bunch of specific times
 		use = np.where((Globals.MET.Date >= Date[0]) & (Globals.MET.Date <= Date[-1]))[0]
 		udate = np.unique(Date)
-		utc = np.array(ut)
+		time = np.array(ut)
 		for i in range(0,udate.size):
 			u = np.where(Date == udate[i])[0]
 			if u.size > 0:
-				utc[u] += TT.DateDifference(Globals.MET.Date[use[0]],Date[u])*24.0
+				time[u] += TT.DateDifference(Globals.MET.Date[use[0]],Date[u])*24.0
 		oldut = np.arange(use.size)*24.0
 		f = interp1d(oldut,Globals.MET.MET[use],bounds_error=False,fill_value='extrapolate')
-		METout = f(utc)
+		METout = f(time)
 		out = np.recarray(METout.size,dtype=Globals.MET.dtype)
 		out.Date = Date
 		out.ut = ut

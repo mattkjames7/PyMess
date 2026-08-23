@@ -1,9 +1,8 @@
 import numpy as np
-from ..Tools.ContUT import ContUT
 
 import DateTimeTools as TT
 
-def GetRegion(Date,ut,utc=None,Verbose=False):
+def GetRegion(Date,ut,unix=None,Verbose=False):
 	'''
 	For an array of dates and times, return an array showing what region 
 	Messenger was within around the magnetosphere at each time.
@@ -39,10 +38,10 @@ def GetRegion(Date,ut,utc=None,Verbose=False):
 	ut = np.array([ut]).flatten()
 	
 	#continuous time
-	if utc is None:
-		utc = ContUT(Date,ut)
+	if unix is None:
+		unix = TT.UnixTime(Date,ut)
 	else:
-		utc = np.array([utc]).flatten()
+		unix = np.array([unix]).flatten()
 	#get all of the sets of crossings
 	sw = GetSolarWindTimes()
 	bs = GetBSCrossings()
@@ -73,14 +72,14 @@ def GetRegion(Date,ut,utc=None,Verbose=False):
 		#limit to within date limits
 		use = np.where((C.Date0 >= Date0) & (C.Date1 <= Date1))[0]
 		c = C[use]
-		cutc0 = ContUT(c.Date0,c.ut0)
-		cutc1 = ContUT(c.Date1,c.ut1)
+		cunix0 = TT.UnixTime(c.Date0,c.ut0)
+		cunix1 = TT.UnixTime(c.Date1,c.ut1)
 		
 		#loop through each element and assign labels
 		for j in range(c.size):
 			if Verbose:
 				print('\r{:d} of {:d} ({:6.2f}%)'.format(j+1,c.size,100.0*(j/c.size)),end='')
-			use = np.where((utc >= cutc0[j]) & (utc <= cutc1[j]))[0]
+			use = np.where((unix >= cunix0[j]) & (unix <= cunix1[j]))[0]
 			Loc[use] = L
 		if Verbose:
 			print('\r{:d} of {:d} ({:6.2f}%)'.format(j+1,c.size,100.0))

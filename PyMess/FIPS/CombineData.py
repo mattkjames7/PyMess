@@ -1,17 +1,19 @@
+from concurrent.futures import ProcessPoolExecutor,as_completed
+import multiprocessing
+
 import numpy as np
 from .ReadData import ReadData
 from .. import Globals
 import DateTimeTools as TT
 from scipy import stats
 from .FitKappaDist import FitKappaDistCts
-from ..Tools.InArray import InArray 
 import os
 import RecarrayTools as RT
 from ..Tools.MatchUT import MatchUT
-from ..Tools.ContUT import ContUT
-from ..Pos.GetRegion import GetRegion 
+from ..Pos.GetRegion import GetRegion
 from ..Pos.GetPosition import GetPosition
 from scipy.interpolate import interp1d
+from tqdm.auto import tqdm
 
 def _CalculateProtonEff(Ebins,Tau,Flux,Counts):
 	'''
@@ -24,114 +26,211 @@ def _CalculateProtonEff(Ebins,Tau,Flux,Counts):
 	return Counts/(Flux*Ebins*Tau*g*dOmega)
 
 
-def Combine60sData(StartI=0,StopI=None,Verbose=True,Overwrite=False,DryRun=False,Species=['H','He','He2','Na','O']):
-	'''
-	This routine will combine the EDR,CDR and DDR FIPS data into a 
-	single file for each date. Multiple high time resolution spectra 
-	will be combined such that the overall resolution is ~60s. It will 
-	also refit the spectra using a kappa distribution function. FIPS 
-	plasma moment fits must be treated with caution, as they may not be 
-	representative of the actual plasma at times - machine learning work 
-	is being used to remove any bad fits.
-	
-	
-	'''
-	
-	#get list of dates to try from the first  flyby to the last day of 
-	#orbital data
-	date = 20080820
-	dates = []
-	while date <= 20150430:
-		dates.append(date)
-		date = TT.PlusDay(date)
-	nd = np.size(dates)
-	
-	#test each date to see if the required files exist
-	exists = np.zeros(nd,dtype='bool')
-	path = Globals.MessPath + 'FIPS/'
-	for i in range(0,nd):
-		if Verbose:
-			print('\rChecking date {0} of {1}'.format(i+1,nd),end='')
-		ee = os.path.isfile(path + 'EDR/' + 'FIPS-EDR-{:08d}.bin'.format(dates[i]))
-		ce = os.path.isfile(path + 'CDR/' + 'FIPS-CDR-{:08d}.bin'.format(dates[i]))
-		se = os.path.isfile(path + 'ESPEC/' + 'FIPS-ESPEC-{:08d}.bin'.format(dates[i]))
-		ne = os.path.isfile(path + 'NTP/' + 'FIPS-NTP-{:08d}.bin'.format(dates[i]))
-		exists[i] = ee | ce | se | ne
-	if Verbose:
-		print()
-	use = np.where(exists)[0]
-	dates = np.array(dates)[use]
-	nd = np.size(dates)
-	if StopI is None:
-		StopI = nd
-	else:
-		StopI = np.min([StopI,nd])
-		
-	#loop through each date
-	for i in range(StartI,StopI):
-		print('Combining Date {0} of {1} ({2})'.format(i+1,nd,dates[i]),flush=True)
-		for S in Species:
-			print('Combining: '+S)
-			_Combine60sDateSpecies(dates[i],S,Verbose,Overwrite,DryRun)
-	
-	
-def Combine10sData(StartI=0,StopI=None,Verbose=True,Overwrite=False):
-	'''
-	This routine will combine the EDR,CDR and DDR FIPS data into a 
-	single file for each date. Multiple high time resolution spectra 
-	will be combined such that the overall resolution is ~10s. It will 
-	also refit the spectra using a kappa distribution function. FIPS 
-	plasma moment fits must be treated with caution, as they may not be 
-	representative of the actual plasma at times - machine learning work 
-	is being used to remove any bad fits.
-	
-	
-	'''
-	
-	#get list of dates to try from the first  flyby to the last day of 
-	#orbital data
-	date = 20080820
-	dates = []
-	while date <= 20150430:
-		dates.append(date)
-		date = TT.PlusDay(date)
-	nd = np.size(dates)
-	
-	#test each date to see if the required files exist
-	exists = np.zeros(nd,dtype='bool')
-	path = Globals.MessPath + 'FIPS/'
-	for i in range(0,nd):
-		ee = os.path.isfile(path + 'EDR/' + 'FIPS-EDR-{:08d}.bin'.format(dates[i]))
-		ce = os.path.isfile(path + 'CDR/' + 'FIPS-CDR-{:08d}.bin'.format(dates[i]))
-		se = os.path.isfile(path + 'ESPEC/' + 'FIPS-ESPEC-{:08d}.bin'.format(dates[i]))
-		ne = os.path.isfile(path + 'NTP/' + 'FIPS-NTP-{:08d}.bin'.format(dates[i]))
-		exists[i] = ee | ce | se | ne
-	use = np.where(exists)[0]
-	dates = np.array(dates)[use]
-	nd = np.size(dates)
-	if StopI is None:
-		StopI = nd
-	else:
-		StopI = np.min([StopI,nd])
-				
-	#loop through each date
-	for i in range(StartI,StopI):
-		print('Combining Date {0} of {1} ({2})'.format(i+1,nd,dates[i]),flush=True)
-		_Combine10sDateSpecies(dates[i],'H',Verbose,Overwrite)
+def _StoreCDRQuality(destination,quality):
+	"""Store CDR flags without overflowing the legacy seven-slot field.
 
-	
-			
-def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=False):
+	For unusually large groups, the final slot contains the worst quality
+	flag from all remaining spectra so that a bad overflow flag is not lost.
+	"""
+	quality = np.asarray(quality)
+	capacity = destination.size
+	if quality.size <= capacity:
+		destination[:quality.size] = quality
+	else:
+		destination[:capacity - 1] = quality[:capacity - 1]
+		destination[capacity - 1] = np.max(quality[capacity - 1:])
+
+
+def _Mode(values):
+	"""Return a scalar mode with both old and current SciPy versions."""
+	return np.asarray(stats.mode(values).mode).reshape(-1)[0]
+
+
+def _PreloadWorkerData():
+	"""Load read-only mission data before forking worker processes."""
+	from ..BowShock.GetBSCrossings import GetBSCrossings
+	from ..BowShock.GetSolarWindTimes import GetSolarWindTimes
+	from ..Magnetopause.GetMPCrossings import GetMPCrossings
+	from ..Magnetopause.GetMSTimes import GetMSTimes
+	from ..Magnetosheath.GetMSHCrossings import GetMSHCrossings
+
+	GetPosition()
+	GetSolarWindTimes()
+	GetBSCrossings()
+	GetMSHCrossings()
+	GetMPCrossings()
+	GetMSTimes()
+
+
+def _Combine60sJob(Date,Species,Overwrite,DryRun):
+	try:
+		_Combine60sDateSpecies(Date,Species,Overwrite,DryRun)
+	except Exception as error:
+		raise RuntimeError(
+			'Failed to combine 60s FIPS data for {:08d} ({:s})'.format(
+				int(Date),Species
+			)
+		) from error
+	return int(Date),Species
+
+
+def _Combine10sJob(Date,Overwrite):
+	try:
+		_Combine10sDateSpecies(Date,'H',Overwrite)
+	except Exception as error:
+		raise RuntimeError(
+			'Failed to combine 10s FIPS data for {:08d}'.format(int(Date))
+		) from error
+	return int(Date)
+
+
+def _CombineDates(Date):
+	"""Return one date, an inclusive date range, or the full mission range."""
+	if Date is None:
+		date0,date1 = 20080820,20150430
+	else:
+		date = np.asarray(Date).reshape(-1)
+		if date.size == 1:
+			return np.array([int(date[0])],dtype='int32')
+		if date.size != 2:
+			raise ValueError('Date must be a single date or a two-date range')
+		date0,date1 = int(np.min(date)),int(np.max(date))
+
+	dates = [date0]
+	while dates[-1] < date1:
+		dates.append(int(TT.PlusDay(dates[-1])))
+	return np.asarray(dates,dtype='int32')
+
+
+def Combine60sData(StartI=0,StopI=None,Overwrite=False,DryRun=False,
+				   Species=None,Workers=4):
+	'''
+	This routine will combine the EDR,CDR and DDR FIPS data into a
+	single file for each date. Multiple high time resolution spectra
+	will be combined such that the overall resolution is ~60s. It will
+	also refit the spectra using a kappa distribution function. FIPS
+	plasma moment fits must be treated with caution, as they may not be
+	representative of the actual plasma at times - machine learning work
+	is being used to remove any bad fits.
+
+
+	'''
+
+	#get list of dates to try from the first  flyby to the last day of
+	#orbital data
+	date = 20080820
+	dates = []
+	while date <= 20150430:
+		dates.append(date)
+		date = TT.PlusDay(date)
+	nd = np.size(dates)
+	if Species is None:
+		Species = ['H','He','He2','Na','O']
+
+	#test each date to see if the required files exist
+	exists = np.zeros(nd,dtype='bool')
+	path = Globals.MessPath + 'FIPS/'
+	for i in range(0,nd):
+		ee = os.path.isfile(path + 'EDR/' + 'FIPS-EDR-{:08d}.bin'.format(dates[i]))
+		ce = os.path.isfile(path + 'CDR/' + 'FIPS-CDR-{:08d}.bin'.format(dates[i]))
+		se = os.path.isfile(path + 'ESPEC/' + 'FIPS-ESPEC-{:08d}.bin'.format(dates[i]))
+		ne = os.path.isfile(path + 'NTP/' + 'FIPS-NTP-{:08d}.bin'.format(dates[i]))
+		exists[i] = ee | ce | se | ne
+	use = np.where(exists)[0]
+	dates = np.array(dates)[use]
+	nd = np.size(dates)
+	if StopI is None:
+		StopI = nd
+	else:
+		StopI = np.min([StopI,nd])
+
+	jobs = [(dates[i],S) for i in range(StartI,StopI) for S in Species]
+	if not jobs:
+		for _ in tqdm([],total=0,desc='Combining 60s FIPS'):
+			pass
+		return
+	_PreloadWorkerData()
+	context = multiprocessing.get_context('fork')
+	with ProcessPoolExecutor(
+			max_workers=max(int(Workers),1),mp_context=context) as executor:
+		futures = [
+			executor.submit(_Combine60sJob,date,S,Overwrite,DryRun)
+			for date,S in jobs
+		]
+		for future in tqdm(
+				as_completed(futures),total=len(futures),desc='Combining 60s FIPS'):
+			future.result()
+
+
+def Combine10sData(Date=None,Overwrite=False,Workers=4):
+	'''
+	This routine will combine the EDR,CDR and DDR FIPS data into a
+	single file for each date. Multiple high time resolution spectra
+	will be combined such that the overall resolution is ~10s. It will
+	also refit the spectra using a kappa distribution function. FIPS
+	plasma moment fits must be treated with caution, as they may not be
+	representative of the actual plasma at times - machine learning work
+	is being used to remove any bad fits.
+
+	Inputs
+	======
+	Date : int, two-element array or None
+		A single date in yyyymmdd format, or an inclusive [start, end]
+		range. If None, all mission dates are processed.
+	Overwrite : bool
+		Overwrite existing combined files.
+	Workers : int
+		Number of worker processes.
+
+
+	'''
+
+	#get the requested date or inclusive range
+	dates = _CombineDates(Date)
+	nd = np.size(dates)
+
+	#test each date to see if the required files exist
+	exists = np.zeros(nd,dtype='bool')
+	path = Globals.MessPath + 'FIPS/'
+	for i in range(0,nd):
+		ee = os.path.isfile(path + 'EDR/' + 'FIPS-EDR-{:08d}.bin'.format(dates[i]))
+		ce = os.path.isfile(path + 'CDR/' + 'FIPS-CDR-{:08d}.bin'.format(dates[i]))
+		se = os.path.isfile(path + 'ESPEC/' + 'FIPS-ESPEC-{:08d}.bin'.format(dates[i]))
+		ne = os.path.isfile(path + 'NTP/' + 'FIPS-NTP-{:08d}.bin'.format(dates[i]))
+		exists[i] = ee | ce | se | ne
+	use = np.where(exists)[0]
+	dates = np.array(dates)[use]
+	nd = np.size(dates)
+	jobs = list(dates)
+	if not jobs:
+		for _ in tqdm([],total=0,desc='Combining 10s FIPS'):
+			pass
+		return
+	_PreloadWorkerData()
+	context = multiprocessing.get_context('fork')
+	with ProcessPoolExecutor(
+			max_workers=max(int(Workers),1),mp_context=context) as executor:
+		futures = [
+			executor.submit(_Combine10sJob,date,Overwrite)
+			for date in jobs
+		]
+		for future in tqdm(
+				as_completed(futures),total=len(futures),desc='Combining 10s FIPS'):
+			future.result()
+
+
+
+def _Combine60sDateSpecies(Date,Species='H',Overwrite=False,DryRun=False):
 	'''
 	Combines the relevant files for a given species on a given date.
-	
+
 	Inputs
 	=======
 	Date : integer, format: yyyymmdd
 	Species: string 'H','He','He2','O','Na'
-	
+
 	'''
-	
+
 	#use species to calculate some constants
 	mass = Globals.Constants.amu * Globals.IonMass.get(Species,Globals.IonMass['H'])
 	e = Globals.Constants.e
@@ -146,35 +245,33 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 	else:
 		vbins0 = np.sqrt((e*2000.0*eqbins0)/mass)
 		vbins2 = np.sqrt((e*2000.0*eqbins2)/mass)
-	
-	
+
+
 	#get output dtype, file name and path
 	OutPath = Globals.MessPath+'FIPS/Combined/60s/{:s}/'.format(Species)
-	if not os.path.isdir(OutPath):
-		os.system('mkdir -pv '+OutPath)
+	os.makedirs(OutPath,exist_ok=True)
 	dtype = Globals.dtype60s
 	fname = OutPath + '{:08d}.bin'.format(Date)
-	
+
 	if os.path.isfile(fname) and not Overwrite and not DryRun:
-		print("File {:s} exists".format(fname))
 		return
-		
+
 	#read in the four data files (if they exist)
-	dS = ReadData(Date,'espec')
-	dN = ReadData(Date,'ntp')
-	dE = ReadData(Date,'edr')
-	dC = ReadData(Date,'cdr')
+	dS = ReadData(Date,'espec',quiet=True)
+	dN = ReadData(Date,'ntp',quiet=True)
+	dE = ReadData(Date,'edr',quiet=True)
+	dC = ReadData(Date,'cdr',quiet=True)
 	if Species == 'H':
-		dA = ReadData(Date,'ann')
+		dA = ReadData(Date,'ann',quiet=True)
 	else:
 		dA = None
 
 	#check that there are any data points:
 	if dE.size == 0 and dC.size == 0 and dS.size == 0 and dN.size == 0:
 		return #no data found at all for this date
-		
-	
-	#now we need to work out how many records there are - NTP values 
+
+
+	#now we need to work out how many records there are - NTP values
 	#don't exist for all data, so using that will cut out other spectra
 	#might be a good idea to group up the CDR or EDR data
 	StartMET = np.copy(dN.StartMET)
@@ -186,7 +283,7 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 	for i in range(0,nN):
 		use = np.where((dS.Index >= StartInd[i]) & (dS.Index <= StopInd[i]))[0]
 		grouped[use] = True
-	
+
 	#now to group up the rest
 	notgrouped = grouped == False
 	ng = np.where(notgrouped)[0]
@@ -203,28 +300,27 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 			use = np.where((met >= met[i]) & (met <= met[i]+60.0))[0]
 			StM.append(met[use[0]])
 			SpM.append(met[use[-1]])
-		
+
 			StI.append(ind[use[0]])
 			SpI.append(ind[use[-1]])
-		
+
 			i = use[-1] + 1
-			
+
 		StartMET = np.append(StartMET,np.array(StM))
 		StopMET = np.append(StopMET,np.array(SpM))
 		StartInd = np.append(StartInd,np.array(StI))
 		StopInd = np.append(StopInd,np.array(SpI))
-		
+
 		srt = np.argsort(StartMET)
-		
+
 		StartMET = StartMET[srt]
 		StopMET = StopMET[srt]
 		StartInd = StartInd[srt]
 		StopInd = StopInd[srt]
-	
+
 	#now we should have grouped all of the data, time to create the output array
 	n = np.size(StartMET)
 	if n == 0:
-		print('no data')
 		return
 	out = np.recarray(n,dtype=dtype)
 
@@ -241,10 +337,10 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 	out.ut = (out.MET-met0)/3600.0
 	out.StartIndex = StartInd
 	out.StopIndex = StopInd
-	
+
 	#continuous ut
-	out.utc = ContUT(out.Date,out.ut)
-	
+	out.unix = TT.UnixTime(out.Date,out.ut)
+
 	#position
 	pos = GetPosition(Date)
 	if pos.size > 0:
@@ -258,19 +354,19 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 		pos.x = np.nan
 		pos.y = np.nan
 		pos.z = np.nan
-		
+
 	#location
-	out.Loc = GetRegion(out.Date,out.ut,out.utc,Verbose=False)
-	
+	out.Loc = GetRegion(out.Date,out.ut,out.unix)
+
 
 	#set default CDR quality flag
-	#Normally 0 = good, 1 = bad, here -1 = not present
-	out.CDRQuality[:] = -1
+	#Normally 0 = good; all bits set denotes a missing CDR record.
+	out.CDRQuality[:] = np.iinfo(out.CDRQuality.dtype).max
 	out.NTPQuality[:] = -1
-	
+
 	#match ut with ANN output and get ANN outputs
 	out.Class[:] = -1
-	out.SplitClass[:,:] = -1 
+	out.SplitClass[:,:] = -1
 	out.Prob[:] = np.nan
 	out.SplitProb[:,:] = np.nan
 	out.nk[:] = np.nan
@@ -281,14 +377,6 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 	if not dA is None:
 		if dA.size > 0:
 			Imatch,_ = MatchUT(out.ut,dA.ut)
-			ngood = np.sum(Imatch > -1)
-			if ngood == dA.size:
-				if Verbose:
-					print('ANN data match')
-			elif ngood < dA.size:
-				print('WARNING: missing {:d} ANN points'.format(dA.size-ngood))
-			else:
-				print('WARNING: too many matches, something really bad has happened!')
 			for i in range(0,Imatch.size):
 				if Imatch[i] > -1:
 					out.Class[i] = dA.Class[Imatch[i]]
@@ -299,16 +387,14 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 					out.tk[i] = dA.tk[Imatch[i]]
 					out.k[i] = dA.K[Imatch[i]]
 					out.pk[i] = out.nk[i]*1e6*kB*out.tk[i]*1e6*1e9
-		
+
 
 
 	#get the appropriate flux
 	Flux = dS[Species+'Flux']
-	
+
 	#loop through groups
 	for i in range(0,n):
-		if Verbose:
-			print('\rCopying data {:f}%'.format(100.0*(i+1)/n),end='')
 		#get the METS from ESPEC first, the rest have to match this!
 		useS = np.where((dS.Index >= StartInd[i]) & (dS.Index <= StopInd[i]))[0]
 		METS = dS.MET[useS]
@@ -316,27 +402,28 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 		out[i].StartMET = METS[0]
 		out[i].StopMET = METS[-1]
 		out[i].MET = METS[-1]
-		
+
 		#now find the other indices by using the MET list
-		useE = np.where(InArray(dE.MET,METS))[0]
-		useC = np.where(InArray(dC.MET,METS))[0]
+		useE = np.where(np.isin(dE.MET,METS))[0]
+		useC = np.where(np.isin(dC.MET,METS))[0]
 
 		#useE = np.where((dE.MET >= StartMET[i]) & (dE.MET <= StopMET[i]))[0]
-		
-		
+
+
 		#useC = np.where((dC.MET >= StartMET[i]) & (dC.MET <= StopMET[i]))[0]
 		useN = np.where(dN.StartIndex == StartInd[i])[0]
 
 		#get NSpec
 		out[i].NSpec = useS.size
-		
+
 		#set E/Q and V bins
 		if useE.size == 0:
 			out[i].ScanType = -1
 			out[i].EQBins = eqbins0
 			out[i].Tau = 0.095
 		else:
-			out[i].ScanType = stats.mode(dE[useE].ScanType)[0][0]
+			out[i].ScanType = _Mode(dE[useE].ScanType)
+
 			if out[i].ScanType == 0:
 				out[i].EQBins = eqbins0
 				out[i].VBins = vbins0/1000.0
@@ -345,26 +432,26 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 				out[i].EQBins = eqbins2
 				out[i].VBins = vbins2/1000.0
 				out[i].Tau = 0.005
-			
-		
+
+
 		#copy counts across,summing over spectra (proton counts only here)
 		if useE.size > 0 and Species == 'H':
 			out[i].Counts = np.sum(dE.ProtonRate[useE],0)
 		else:
 			out[i].Counts[:] = 0
-		
+
 		#now to move the fluxes over from ESPEC
 		if useS.size > 0:
 			out[i].Flux = np.nanmean(Flux[useS],0)
 
 			#calculate PSD
 			out[i].PSD = out[i].Flux*(mass/(out[i].VBins**2)) * (10.0/e)
-		
+
 		#save the quality flags
 		if useC.size > 0 and Species == 'H':
-			out[i].CDRQuality[:useC.size] = dC[useC].Quality
-		
-		
+			_StoreCDRQuality(out[i].CDRQuality,dC[useC].Quality)
+
+
 		#input NTP values if they exist
 		out.HasNTP[i] = False
 		out.n[i] = np.nan
@@ -377,61 +464,49 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 			out.p[i] = dN[useN[0]].p
 			out.HasNTP[i] = True
 			out.NTPQuality[i] = dN[useN[0]].Quality
-	if Verbose:
-		print()
-	
 	#This following bit will only work for protons currently, for all other ions Eff = 1
 	if Species == 'H':
 		#calculate efficiencies
 		Tau2 = np.array([5]*52 + [0]*12)/1000.0
-		Tau0 = np.array([95]*60 + [0]*4)/1000.0	
+		Tau0 = np.array([95]*60 + [0]*4)/1000.0
 		Eff = np.zeros((n,64),dtype='float32')
 		for i in range(0,n):
-			if Verbose:
-				print('\rCalculating Efficiencies {:f}%'.format(100.0*(i+1)/n),end='')
 			if out[i].ScanType == 0:
 				Ebins = eqbins0
 				Tau = Tau0
 			else:
 				Ebins = eqbins2
-				Tau = Tau2		
+				Tau = Tau2
 			zero = np.where(out[i].Counts == 0)[0]
 			Eff[i] = _CalculateProtonEff(Ebins,Tau,out[i].Flux,out[i].Counts)
 			Eff[i][zero] = np.nan
-		
+
 		if np.size(Eff.shape) == 2:
 			Eff = np.nanmean(Eff,0)
 			Eff[np.isfinite(Eff) == False] = np.nan
 	else:
 		Tau2 = np.array([5]*52 + [0]*12)/1000.0
-		Tau0 = np.array([95]*60 + [0]*4)/1000.0	
+		Tau0 = np.array([95]*60 + [0]*4)/1000.0
 		Eff = np.zeros((n,64),dtype='float32')
 		for i in range(0,n):
-			if Verbose:
-				print('\rCalculating Efficiencies {:f}%'.format(100.0*(i+1)/n),end='')
 			if out[i].ScanType == 0:
 				Ebins = eqbins0
 				Tau = Tau0
 			else:
 				Ebins = eqbins2
-				Tau = Tau2		
+				Tau = Tau2
 			zero = np.where(out[i].Counts == 0)[0]
 			Eff[i] = Tau*1.0
 			Eff[i][zero] = np.nan
 		if np.size(Eff.shape) == 2:
 			Eff = np.nanmean(Eff,0)
 			Eff[np.isfinite(Eff) == False] = np.nan
-	if Verbose:
-		print()
-	
 	if Species == 'H':
 		#attempt to refit the spectrum with a kappa distribution
 		for i in range(0,n):
-			if Verbose:
-				print('\rRefitting Spectra {:f}%'.format(100.0*(i+1)/n),end='')
 			#save efficiency
 			out[i].Efficiency[:] = Eff
-			
+
 			#changed this bit so that fitting only happens if n,T,K haven't already been defined in ANN data
 			if np.isnan(out[i].nk):
 				#set starting guess for n and T based on original fits if they exist
@@ -456,23 +531,21 @@ def _Combine60sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False,DryRun=
 					out[i].k = np.nan
 					out[i].pk = np.nan
 
-		if Verbose:
-			print()
 	if out.size > 0 and not DryRun:
-		RT.SaveRecarray(out,fname)	
+		RT.SaveRecarray(out,fname)
 	return out
-					
-def _Combine10sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
+
+def _Combine10sDateSpecies(Date,Species='H',Overwrite=False):
 	'''
 	Combines the relevant files for a given species on a given date.
-	
+
 	Inputs
 	=======
 	Date : integer, format: yyyymmdd
 	Species: string 'H','He','He2','O','Na'
-	
+
 	'''
-	
+
 	#use species to calculate some constants
 	mass = Globals.Constants.amu * Globals.IonMass.get(Species,Globals.IonMass['H'])
 	e = Globals.Constants.e
@@ -487,32 +560,30 @@ def _Combine10sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
 	else:
 		vbins0 = np.sqrt((e*2000.0*eqbins0)/mass)
 		vbins2 = np.sqrt((e*2000.0*eqbins2)/mass)
-	
-	
+
+
 	#get output dtype, file name and path
 	OutPath = Globals.MessPath+'FIPS/Combined/10s/{:s}/'.format(Species)
-	if not os.path.isdir(OutPath):
-		os.system('mkdir -pv '+OutPath)
+	os.makedirs(OutPath,exist_ok=True)
 	dtype = Globals.dtype10s
 	fname = OutPath + '{:08d}.bin'.format(Date)
-	
+
 	if os.path.isfile(fname) and not Overwrite:
-		print("File {:s} exists".format(fname))
 		return
-		
-	
+
+
 	#read in the four data files (if they exist)
-	dS = ReadData(Date,'espec')
-	dN = ReadData(Date,'ntp')
-	dE = ReadData(Date,'edr')
-	dC = ReadData(Date,'cdr')
+	dS = ReadData(Date,'espec',quiet=True)
+	dN = ReadData(Date,'ntp',quiet=True)
+	dE = ReadData(Date,'edr',quiet=True)
+	dC = ReadData(Date,'cdr',quiet=True)
 
 
 	#check that there are any data points:
 	if dE.size == 0 and dC.size == 0 and dS.size == 0 and dN.size == 0:
 		return #no data found at all for this date
-		
-	
+
+
 	#find number of record using either EDR/CDR (for H) or ESPEC (for everything else)
 	if Species == 'H':
 		n = dC.size
@@ -540,8 +611,8 @@ def _Combine10sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
 	out.ut = (out.MET-met0)/3600.0
 
 	#continuous ut
-	out.utc = ContUT(out.Date,out.ut)
-	
+	out.unix = TT.UnixTime(out.Date,out.ut)
+
 	#position
 	pos = GetPosition(Date)
 	if pos.size > 0:
@@ -555,24 +626,24 @@ def _Combine10sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
 		pos.x = np.nan
 		pos.y = np.nan
 		pos.z = np.nan
-	
-	#location
-	out.Loc = GetRegion(out.Date,out.ut,out.utc,Verbose=False)
-	
 
-	
+	#location
+	out.Loc = GetRegion(out.Date,out.ut,out.unix)
+
+
+
 	#set default CDR quality flag
-	#Normally 0 = good, 1 = bad, here -1 = not present
-	out.CDRQuality[:] = -1
+	#Normally 0 = good; all bits set denotes a missing CDR record.
+	out.CDRQuality[:] = np.iinfo(out.CDRQuality.dtype).max
 	out.NTPQuality[:] = -1
+	out.Flux[:] = np.nan
+	out.PSD[:] = np.nan
 
 	#get the appropriate flux
 	Flux = dS[Species+'Flux']
-	
+
 	#loop through groups
 	for i in range(0,n):
-		if Verbose:
-			print('\rCopying data {:f}%'.format(100.0*(i+1)/n),end='')
 		#get the METS from ESPEC first, the rest have to match this!
 		if Species == 'H':
 			useS = np.where(dS.Index == Index[i])[0]
@@ -588,14 +659,14 @@ def _Combine10sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
 		#useC = np.where((dC.MET >= StartMET[i]) & (dC.MET <= StopMET[i]))[0]
 		useN = np.where((dN.StartIndex <= Index[i]) & (dN.StopIndex >= Index[i]))[0]
 
-			
+
 		#set E/Q and V bins
 		if useE.size == 0:
 			out[i].ScanType = -1
 			out[i].EQBins = eqbins0
 			out[i].Tau = 0.095
 		else:
-			out[i].ScanType = stats.mode(dE[useE].ScanType)[0][0]
+			out[i].ScanType = _Mode(dE[useE].ScanType)
 			if out[i].ScanType == 0:
 				out[i].EQBins = eqbins0
 				out[i].VBins = vbins0/1000.0
@@ -604,26 +675,31 @@ def _Combine10sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
 				out[i].EQBins = eqbins2
 				out[i].VBins = vbins2/1000.0
 				out[i].Tau = 0.005
-			
-		
+
+
 		#copy counts across,summing over spectra (proton counts only here)
 		if useE.size > 0 and Species == 'H':
 			out[i].Counts = np.sum(dE.ProtonRate[useE],0)
 		else:
 			out[i].Counts[:] = 0
-		
+
 		#now to move the fluxes over from ESPEC
 		if useS.size > 0:
 			out[i].Flux = Flux[useS[0]]
 
 			#calculate PSD
 			out[i].PSD = out[i].Flux*(mass/(out[i].VBins**2)) * (10.0/e)
-		
+		elif Species == 'H' and useC.size > 0:
+			#ESPEC begins later in the mission; CDR contains the proton
+			#spectrum needed for earlier 10-second products.
+			out[i].Flux = dC.ProtonFlux[useC[0]]
+			out[i].PSD = out[i].Flux*(mass/(out[i].VBins**2)) * (10.0/e)
+
 		#save the quality flags
 		if useC.size > 0:
 			out[i].CDRQuality = dC[useC[0]].Quality
-		
-		
+
+
 		#input NTP values if they exist
 		out.HasNTP[i] = False
 		out.n[i] = np.nan
@@ -636,47 +712,40 @@ def _Combine10sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
 			out.p[i] = dN[useN[0]].p
 			out.HasNTP[i] = True
 			out.NTPQuality[i] = dN[useN[0]].Quality
-	if Verbose:
-		print()
-	
 	#This following bit will only work for protons currently, for all other ions Eff = 1
 	if Species == 'H':
 		#calculate efficiencies
 		Tau2 = np.array([5]*52 + [0]*12)/1000.0
-		Tau0 = np.array([95]*60 + [0]*4)/1000.0	
+		Tau0 = np.array([95]*60 + [0]*4)/1000.0
 		Eff = np.zeros((n,64),dtype='float32')
 		for i in range(0,n):
-			if Verbose:
-				print('\rCalculating Efficiencies {:f}%'.format(100.0*(i+1)/n),end='')
 			if out[i].ScanType == 0:
 				Ebins = eqbins0
 				Tau = Tau0
 			else:
 				Ebins = eqbins2
-				Tau = Tau2		
+				Tau = Tau2
 			zero = np.where(out[i].Counts == 0)[0]
 
 			Eff[i] = _CalculateProtonEff(Ebins,Tau,out[i].Flux,out[i].Counts)
 			nf = np.where(np.isfinite(Eff[i]) == False)[0]
 			Eff[i][nf] = np.nan
 			Eff[i][zero] = np.nan
-		
+
 		if np.size(Eff.shape) == 2:
 			Eff = np.nanmean(Eff,0)
 			Eff[np.isfinite(Eff) == False] = np.nan
 	else:
 		Tau2 = np.array([5]*52 + [0]*12)/1000.0
-		Tau0 = np.array([95]*60 + [0]*4)/1000.0	
+		Tau0 = np.array([95]*60 + [0]*4)/1000.0
 		Eff = np.zeros((n,64),dtype='float32')
 		for i in range(0,n):
-			if Verbose:
-				print('\rCalculating Efficiencies {:f}%'.format(100.0*(i+1)/n),end='')
 			if out[i].ScanType == 0:
 				Ebins = eqbins0
 				Tau = Tau0
 			else:
 				Ebins = eqbins2
-				Tau = Tau2		
+				Tau = Tau2
 			zero = np.where(out[i].Counts == 0)[0]
 			nf = np.where(np.isfinite(Eff) == False)[0]
 			Eff[i] = Tau*1.0
@@ -685,17 +754,16 @@ def _Combine10sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
 		if np.size(Eff.shape) == 2:
 			Eff = np.nanmean(Eff,0)
 			Eff[np.isfinite(Eff) == False] = np.nan
-	if Verbose:
-		print()
-	
 	if Species == 'H':
 		#attempt to refit the spectrum with a kappa distribution
+		out.nk[:] = np.nan
+		out.tk[:] = np.nan
+		out.k[:] = np.nan
+		out.pk[:] = np.nan
 		for i in range(0,n):
-			if Verbose:
-				print('\rRefitting Spectra {:f}%'.format(100.0*(i+1)/n),end='')
 			#save efficiency
 			out[i].Efficiency[:] = Eff
-			
+
 
 			#set starting guess for n and T based on original fits if they exist
 			if np.isnan(out[i].n):
@@ -706,22 +774,21 @@ def _Combine10sDateSpecies(Date,Species='H',Verbose=True,Overwrite=False):
 				T0 = out[i].t*1e6
 
 			#now try fitting
-			nTK = FitKappaDistCts(out.VBins[i]*1000.0,out.Counts[i],n0,T0,dOmega,mass,Eff,1,out[i].Tau,g)
+			try:
+				nTK = FitKappaDistCts(
+					out.VBins[i]*1000.0,out.Counts[i],n0,T0,dOmega,
+					mass,Eff,1,out[i].Tau,g
+				)
+			except Exception:
+				#A failed optional fit must not prevent the measured data being saved.
+				continue
 			#check that the values are all positive at least
-			if nTK[0] > 0 and nTK[1] > 0 and nTK[2] > 0:
+			if len(nTK) == 3 and np.all(np.isfinite(nTK)) and np.all(np.asarray(nTK) > 0):
 				out[i].nk = nTK[0]/1e6
 				out[i].tk = nTK[1]/1e6
 				out[i].k = nTK[2]
 				out[i].pk = nTK[0]*kB*nTK[1]*1e9
-			else:
-				out[i].nk = np.nan
-				out[i].tk = np.nan
-				out[i].k = np.nan
-				out[i].pk = np.nan
 
-		if Verbose:
-			print()
 	if out.size > 0:
-		RT.SaveRecarray(out,fname)	
+		RT.SaveRecarray(out,fname)
 	return out
-					

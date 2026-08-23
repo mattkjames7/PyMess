@@ -49,12 +49,7 @@ def PlotMSHCrossingMagData(Crossing,MagType='MSM',Ab=None,Minute=False,Rsm=1.42,
 	data = MSHCrossingMagData(Crossing,MagType,Ab,Minute,Res,Rsm,MagType=MagType)
 
 	#create a continuous time axis
-	utc = np.copy(data.ut)
-	neg = np.where(utc[1:] < utc[:-1])[0]
-	if neg.size > 0:
-		for i in range(0,neg,size):
-			dd = TT.DateDifference(data.Date[neg[i]],data.date[neg[i]+1])
-			utc[neg[i]+1] += 24.0*dd
+	unix = np.copy(data.unix)
 			
 
 	#create plot
@@ -66,23 +61,23 @@ def PlotMSHCrossingMagData(Crossing,MagType='MSM',Ab=None,Minute=False,Rsm=1.42,
 	colors = [[1.0,0.0,0.0],[0.0,1.0,0.0],[0.0,0.0,1.0]]
 	Bm = np.zeros(data.size,dtype='float32')
 	for i in range(0,3):
-		ax.plot(utc,data[DataLabels[i]],color=colors[i],label=PlotLabels[i],linewidth=1.0)
+		ax.plot(unix,data[DataLabels[i]],color=colors[i],label=PlotLabels[i],linewidth=1.0)
 		Bm += data[DataLabels[i]]**2
 	Bm = np.sqrt(Bm)
-	ax.plot(utc,data[DataLabels[i]],color=[0.0,0.0,0.0],label='|B|',linewidth=1.0)
-	ax.plot(utc,-data[DataLabels[i]],color=[0.0,0.0,0.0],linewidth=1.0)
+	ax.plot(unix,data[DataLabels[i]],color=[0.0,0.0,0.0],label='|B|',linewidth=1.0)
+	ax.plot(unix,-data[DataLabels[i]],color=[0.0,0.0,0.0],linewidth=1.0)
 
 
-	ax.hlines(0.0,np.nanmin(utc),np.nanmax(utc),linestyle='--',linewidth=1.0,color=[0.0,0.0,0.0])
+	ax.hlines(0.0,np.nanmin(unix),np.nanmax(unix),linestyle='--',linewidth=1.0,color=[0.0,0.0,0.0])
 
 	R = fig.axis()
-	ax.axis([np.nanmin(utc),np.nanmax(utc),R[2],R[3]])
+	ax.axis([np.nanmin(unix),np.nanmax(unix),R[2],R[3]])
 	ax.set_ylabel('Magnetic Field')
 	
 	OverlayMP(ax,[data.Date[0],data.Date[-1]])
 
 	if noxlabel == False:
-		TT.DTPlotLabel(ax,Seconds=True,IncludeYear=False)
+		TT.DTPlotLabel(ax,Seconds=True,IncludeYear=False,TimeFMT='unix')
 		fig.xlabel('UT')
 	else:
 		ax.xaxis.set_visible(False)

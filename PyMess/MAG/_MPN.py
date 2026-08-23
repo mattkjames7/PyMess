@@ -36,7 +36,7 @@ def _MPN(Date,Minute=False):
 	if Minute == True:
 		BN,BM,BL,pN,pM,pL,xMP,yMP,zMP,nx,ny,nz = MSMtoMPN(MinData.Bx,MinData.By,MinData.Bz,MinData.Xmsm,MinData.Ymsm,MinData.Zmsm,True)
 		ut = MinData.ut
-		utc = MinData.utc
+		unix = MinData.unix
 		Xmsm = MinData.Xmsm
 		Ymsm = MinData.Ymsm
 		Zmsm = MinData.Zmsm
@@ -79,7 +79,7 @@ def _MPN(Date,Minute=False):
 
 
 			ut = FullData.ut
-			utc = FullData.utc
+			unix = FullData.unix
 			Xmsm = FullData.Xmsm
 			Ymsm = FullData.Ymsm
 			Zmsm = FullData.Zmsm		
@@ -94,6 +94,8 @@ def _MPN(Date,Minute=False):
 		return data
 	
 	data.ut = ut
+	data.Date = Date
+	data.unix = unix
 	data.BN = BN
 	data.BM = BM
 	data.BL = BL

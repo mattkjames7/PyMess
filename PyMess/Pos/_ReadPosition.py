@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import PyFileIO as pf
+import DateTimeTools as TT
 from .. import Globals
 
 def _ReadPosition():
@@ -17,13 +18,14 @@ def _ReadPosition():
 	fname = Globals.ModulePath+'__data/MessPosMSM.bin'
 	dtype = [	('Date','int32'),
 				('ut','float32'),
-				('utc','float64'),
+				('unix','float64'),
 				('x','float32'),
 				('y','float32'),
 				('z','float32')]	
 	if not os.path.isfile(fname):
 		return np.recarray(0,dtype=dtype)
-	return pf.ReadRecarray(fname,dtype)
-
+	data = pf.ReadRecarray(fname,dtype)
+	data.unix = TT.UnixTime(data.Date,data.ut)
+	return data
 
 

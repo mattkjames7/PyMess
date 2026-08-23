@@ -57,11 +57,12 @@ def _ConvertPDS(PrevData,CurrData,NextData,date):
 		for t in tags:
 			minout[t][j] = np.nanmean(out[t][use])
 		
-	tags = ['Xmso','Ymso','Zmso','Xmsm','Ymsm','Zmsm','utc']
+	tags = ['Xmso','Ymso','Zmso','Xmsm','Ymsm','Zmsm']
 	for t in tags:
 		f = interp1d(out.ut,out[t],bounds_error=False,fill_value='extrapolate',kind='cubic')
 		minout[t] = f(minout.ut)
-	minout.Loc = GetRegion(minout.Date,minout.ut,minout.utc,Verbose=False)
+	minout.unix = TT.UnixTime(minout.Date,minout.ut)
+	minout.Loc = GetRegion(minout.Date,minout.ut,minout.unix,Verbose=False)
 	
 	#save minute data
 	RT.SaveRecarray(minout,minpath+fname)	
@@ -178,11 +179,12 @@ def ConvertPDStoBinary():
 			for t in tags:
 				minout[t][j] = np.nanmean(out[t][use])
 			
-		tags = ['Xmso','Ymso','Zmso','Xmsm','Ymsm','Zmsm','utc']
+		tags = ['Xmso','Ymso','Zmso','Xmsm','Ymsm','Zmsm']
 		for t in tags:
 			f = interp1d(out.ut,out[t],bounds_error=False,fill_value='extrapolate',kind='cubic')
 			minout[t] = f(minout.ut)
-		minout.Loc = GetRegion(minout.Date,minout.ut,minout.utc,Verbose=False)
+		minout.unix = TT.UnixTime(minout.Date,minout.ut)
+		minout.Loc = GetRegion(minout.Date,minout.ut,minout.unix,Verbose=False)
 		
 		#save minute data
 		RT.SaveRecarray(minout,minpath+fname)

@@ -2,7 +2,6 @@ import numpy as np
 import DateTimeTools as TT
 from .. import Globals
 from .GetBSCrossings import GetBSCrossings
-from ..Tools.ContUT import ContUT
 
 def OverlayBS(ax,Date,ShadeCrossings=True,UseLabel=True):
 	'''
@@ -27,8 +26,8 @@ def OverlayBS(ax,Date,ShadeCrossings=True,UseLabel=True):
 		#starting at 0 at midnight on the first day, ending at 24*No of days
 		#in total. Anything outside of the plot range shouldn't show up 
 		#(in theory anyway)
-		ut0 = ContUT(BSData.Date0,BSData.ut0)
-		ut1 = ContUT(BSData.Date1,BSData.ut1)
+		ut0 = TT.UnixTime(BSData.Date0,BSData.ut0)
+		ut1 = TT.UnixTime(BSData.Date1,BSData.ut1)
 			
 	
 		#now for plotting

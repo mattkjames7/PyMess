@@ -2,7 +2,6 @@ import numpy as np
 import PyFileIO as pf
 import DateTimeTools as TT
 from .. import MagGlobals
-from ...Tools.ContUT import ContUT
 from ...Pos.GetRegion import GetRegion
 
 def ReadPDSMAG(fname):
@@ -35,7 +34,7 @@ def ReadPDSMAG(fname):
 	
 	out.Date = np.array([TT.DayNotoDate(data.Year[i],data.DOY[i])[0] for i in range(0,n)])
 	out.ut = np.float32(data.Hour) + np.float32(data.Min)/60.0 + np.float32(data.Sec)/3600.0
-	out.utc = ContUT(out.Date,out.ut)
+	out.unix = TT.UnixTime(out.Date,out.ut)
 	out.Xmso = data.Xmso/2440.0
 	out.Ymso = data.Ymso/2440.0
 	out.Zmso = data.Zmso/2440.0
@@ -45,6 +44,6 @@ def ReadPDSMAG(fname):
 	out.Bx = data.Bx
 	out.By = data.By
 	out.Bz = data.Bz
-	out.Loc = GetRegion(out.Date,out.ut,out.utc,Verbose=False)
+	out.Loc = GetRegion(out.Date,out.ut,out.unix,Verbose=False)
 
 	return out

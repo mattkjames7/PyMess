@@ -1,11 +1,15 @@
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import multiprocessing
+import os
+
 import numpy as np
 from .FindPDSFiles import FindPDSFiles
 from ...Tools.ReadPDSFile import ReadPDSFile
+from .ReadPDS4 import ReadPDS4
 import RecarrayTools as RT
 from ... import Globals
 from ...Tools.PDSFMTtodtype import PDSFMTtodtype
 import DateTimeTools as TT
-import os
 
 edrfields = {	'MET':				'MET',
 				'FIPS_SCANTYPE':	'ScanType',
@@ -40,10 +44,13 @@ ntpfields = {	'START_INDEX':		'StartIndex',
 				'QUAL':				'Quality'}
 				
 
-def ConvertToBinary(ConvEDR=True,ConvCDR=True,ConvESPEC=True,ConvNTP=True):
-	
-	#set the NS path
-	nspath = Globals.MessPath+'FIPS/'
+def ConvertToBinary(ConvEDR=True,ConvCDR=True,ConvESPEC=True,ConvNTP=True,
+					Workers=4):
+	"""Convert downloaded FIPS products using parallel per-file workers.
+
+	Set ``Workers=1`` to use the original sequential execution model.
+	"""
+	Workers = max(int(Workers),1)
 	
 	#get the lists of files
 	nspds = FindPDSFiles()
@@ -63,12 +70,15 @@ def ConvertToBinary(ConvEDR=True,ConvCDR=True,ConvESPEC=True,ConvNTP=True):
 
 	#now loop through converting each product
 	for i in range(0,4):
-		print('Converting Product: {:s} ({:d}/{:d})'.format(Prods[i],i+1,4))
 		if ConvList[i]:
-			fmt,files,outdir = nspds[Prods[i]]
+			print('Converting Product: {:s} ({:d}/{:d})'.format(Prods[i],i+1,4))
+			labels,files,outdir = nspds[Prods[i]]
+			if len(files) == 0:
+				print('No files found - skipping')
+				continue
 			field = allfields[i]
 			
-			_ConvBinary(fmt,files,outdir,fpatts[i],field,DateInds[i])
+			_ConvBinary(labels,files,outdir,fpatts[i],field,DateInds[i],Workers)
 		
 		
 def _NewDtype(pdsdata,fields):
@@ -94,70 +104,91 @@ def _NewDtype(pdsdata,fields):
 				tmp = (fields[f],pdsdata[f].dtype.str,pdsdata[f].shape[1:])
 			newdtype.append(tmp)
 	return newdtype
+
+
+def _DayNotoDate(year,doy):
+	"""Return a scalar date with old and new DateTimeTools versions."""
+	return np.asarray(TT.DayNotoDate(np.int32(year),np.int32(doy))).reshape(-1)[0]
 		
 		
 
-def _ConvBinary(fmt,files,outdir,fpatt,fields,DateInds):
+def _ConvertFile(label,filename,outpath,fpatt,fields,DateInds):
+	"""Convert one daily PDS product; designed to run in a worker process."""
+	oldfields = list(fields.keys())
+
+	#get the date from the file name
+	flast = os.path.basename(filename)
+	datestr = flast[DateInds[0]:DateInds[1]+1]
+	year = np.int32(datestr[:4])
+	doy = np.int32(datestr[4:7])
+	Date = _DayNotoDate(year,doy)
+
+	#read the file using its PDS4 label (or a legacy PDS3 FMT)
+	if label.lower().endswith(('.xml','.lblx')):
+		data,_ = ReadPDS4(label)
+	else:
+		data,_ = ReadPDSFile(filename,PDSFMTtodtype(label))
+
+	dtype = _NewDtype(data,fields)
+	out = np.recarray(data.size,dtype=dtype)
+
+	#move data to new recarray
+	for f in oldfields:
+		if isinstance(fields[f],tuple):
+			#probably a date, time or date and time combination
+			if len(fields[f]) == 2:
+				out.Date = [_DayNotoDate(x[0:4],x[5:8]) for x in data[f]]
+				out.ut = [np.float32(x[9:11])+np.float32(x[12:14])/60.0+np.float32(x[15:])/3600.0 for x in data[f]]
+			elif len(fields[f]) == 1 and fields[f] == 'Date':
+				out.Date = [np.int32(x[0:4]+x[5:7]+x[8:10]) for x in data[f]]
+			elif len(fields[f]) == 1 and fields[f] == 'ut':
+				out.ut = [np.float32(x[0:2]) + np.float32(x[3:5])/60.0 + np.float32(x[6:])/3600.0 for x in data[f]]
+		else:
+			out[fields[f]] = data[f]
+
+	fname = os.path.join(outpath,fpatt.format(Date))
+	RT.SaveRecarray(out,fname)
+	return fname
+
+
+def _ConvBinary(labels,files,outdir,fpatt,fields,DateInds,Workers=1):
 	#set the output folder
 	outpath = Globals.MessPath+'FIPS/'+outdir
-	
-	if not os.path.isdir(outpath):
-		os.system('mkdir -pv '+outpath)
-	#get fmt data
-	fmtdata = PDSFMTtodtype(fmt)
-	
-	
-	oldfields = list(fields.keys())
-	newfields = [fields[f] for f in oldfields]
+	os.makedirs(outpath,exist_ok=True)
+	nf = len(files)
+	failures = []
 
-	
-	#loop through files
-	nf = np.size(files)
-	for i in range(0,nf):
-		
-		
-		#get the date from the file name
-		fsplit = files[i].split('/')
-		flast = fsplit[-1]
-		datestr = flast[DateInds[0]:DateInds[1]+1]
-		year = np.int32(datestr[:4])
-		doy = np.int32(datestr[4:7])
-		Date = TT.DayNotoDate(year,doy)
-		
-		#read the file first
-		data,_ = ReadPDSFile(files[i],fmtdata)
-		
-		#get the new dtype if needed
-		if i == 0:
-			dtype = _NewDtype(data,fields)
-			print('dtype: ',dtype)
-			print(data.dtype)
-		print('\rConverting file {:d} of {:d}'.format(i+1,nf),end='')
-		#get the output recarray
-		out = np.recarray(data.size,dtype=dtype)
-		
-		#move data to new recarray
-		for f in oldfields:
-			
-			
-			if isinstance(fields[f],tuple):
-				#probably a date, time or date and time combination
-				if len(fields[f]) == 2:
-					x = data[f][0]
-					out.Date = [TT.DayNotoDate(np.int32(x[0:4]),np.int32(x[5:8])) for x in data[f]]
-					out.ut = [np.float32(x[9:11])+np.float32(x[12:14])/60.0+np.float32(x[15:])/3600.0 for x in data[f]]
-				elif len(fields[f]) == 1 and fields[f] == 'Date':
-					out.Date = [np.int32(x[0:4]+x[5:7]+x[8:10]) for x in data[f]]
-				elif len(fields[f]) == 1 and fields[f] == 'ut':
-					out.ut = [np.float32(x[0:2]) + np.float32(x[3:5])/60.0 + np.float32(x[6:])/3600.0 for x in data[f]]
-
-			else:
-				out[fields[f]] = data[f]
-
-		#save the file
-		fname = outpath + fpatt.format(Date)
-		RT.SaveRecarray(out,fname)
-		
+	if Workers == 1:
+		for i,(label,filename) in enumerate(zip(labels,files),1):
+			try:
+				_ConvertFile(label,filename,outpath,fpatt,fields,DateInds)
+			except Exception as error:
+				failures.append('{:s}: {}'.format(filename,error))
+			print('\rConverted file {:d} of {:d}'.format(i,nf),end='',flush=True)
+	else:
+		# Python 3.14 defaults to a fork server, which is awkward for
+		# interactive sessions and restricted compute nodes. PyMess targets
+		# POSIX systems, where a direct fork works without a helper server.
+		context = multiprocessing.get_context('fork')
+		with ProcessPoolExecutor(max_workers=Workers,mp_context=context) as executor:
+			jobs = {
+				executor.submit(
+					_ConvertFile,label,filename,outpath,fpatt,fields,DateInds
+				): filename
+				for label,filename in zip(labels,files)
+			}
+			for i,job in enumerate(as_completed(jobs),1):
+				try:
+					job.result()
+				except Exception as error:
+					failures.append('{:s}: {}'.format(jobs[job],error))
+				print('\rConverted file {:d} of {:d}'.format(i,nf),end='',flush=True)
 	print()
-	
 
+	if failures:
+		raise RuntimeError(
+			'Failed to convert {:d} file(s):\n{:s}'.format(
+				len(failures),'\n'.join(failures)
+			)
+		)
+	

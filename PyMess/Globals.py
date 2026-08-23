@@ -2,14 +2,23 @@ import os
 import numpy as np
 ModulePath = os.path.dirname(__file__)+'/'
 ModuleData = os.path.dirname(__file__)+'/__data/'
-try:
-	MessPath = os.getenv('TEST_MESSENGER_PATH')+'/'
-except:
-	print('Please set TEST_MESSENGER_PATH environment variable')
+_messenger_path = os.getenv('MESSENGER_PATH') or os.getenv('TEST_MESSENGER_PATH')
+if _messenger_path:
+	MessPath = _messenger_path.rstrip('/')+'/'
+else:
+	print('Please set MESSENGER_PATH environment variable')
 	MessPath = ''
-	
+
 #mission elapsed time
 MET = None
+
+# FIPS mission-elapsed-time epochs, expressed as Unix seconds at MET=0.
+# The instrument counter reset between 2013-01-08 and 2013-01-09, so both
+# epochs are required to reconstruct calendar time over the full archive.
+# Values were derived from the first CDR record in each counter era.
+FIPSMET0Unix = 1091512556.375
+FIPSMETResetDate = 20130109
+FIPSMETResetUnix = 1357676000.191
 
 #Store loaded MAG data in memory for quick access
 LoadedMAGData = {}
@@ -59,7 +68,7 @@ bins2 = np.array([  13.577,  12.332,  11.201,  10.174,   9.241,   8.393,
 					 0.263,   0.239,   0.217,   0.197,   0.179,   0.163,   0.148,
 					 0.134,   0.122,   0.111,   0.1  ,   0.046,   0.046,   0.046,
 					 0.046,   0.046,   0.046,   0.046,   0.046,   0.046,   0.046,
-					 0.046,   0.046])	
+					 0.046,   0.046])
 
 bins0 = np.array([  13.577,  12.332,  11.201,  10.174,   9.241,   8.393,
 					 7.623,   6.924,   6.289,   5.712,   5.188,   4.713,   4.28 ,
@@ -79,7 +88,7 @@ EQBins = {	0:	bins0,
 #Tau
 Tau = {	0:	0.095,
 		2:	0.005}
-		
+
 #Ion Mass
 IonMass = { 'H': 	1.007,
 			'He':	4.0026,
@@ -96,7 +105,7 @@ class Constants(object):
 #FIPS dtypes
 dtype60s = [('Date','int32'),				#Date in format yyyymmdd
 			('ut','float32'),				#UT time since begining of day in hours
-			('utc','float64'),				#continuous time
+			('unix','float64'),				#Unix time in seconds
 			('x','float32'),				#x MSM
 			('y','float32'),				#y MSM
 			('z','float32'),				#z MSM
@@ -107,12 +116,12 @@ dtype60s = [('Date','int32'),				#Date in format yyyymmdd
 			('StartIndex','int32'),			#Start index
 			('StopIndex','int32'),			#end index
 			('ScanType','int8'),			#Scan Type is either 0 or 2 to determine energy bin ranges
-			('NSpec','int32'),				#Number of spectra combined 
+			('NSpec','int32'),				#Number of spectra combined
 			('Tau','float32'),				#Tau parameter - dwell time on each energy bin
-			('CDRQuality','int16',(7,)),	#CDR data quality flag (0 = good, I think)
+			('CDRQuality','uint16',(7,)),	#16-bit CDR quality flags; 65535 = not present
 			('NTPQuality','int16'),			#NTP data quality flag (0 = good)
 			('Ion','U3'),					#Species of ion
-			('HasNTP','bool8'),				#Whether this spectrum has an NTP fit
+			('HasNTP','bool'),				#Whether this spectrum has an NTP fit
 			('EQBins','float32',(64,)),		#Energy/charge bins in keV/Q
 			('Efficiency','float32',(64,)),	#Efficiency parameter (rho) - carful, I worked backwards to get this so it may be wrong!
 			('VBins','float32',(64,)),		#Velocity bins in km/s
@@ -133,7 +142,7 @@ dtype60s = [('Date','int32'),				#Date in format yyyymmdd
 
 dtype10s = [('Date','int32'),
 			('ut','float32'),
-			('utc','float64'),				#continuous time
+			('unix','float64'),				#Unix time in seconds
 			('x','float32'),				#x MSM
 			('y','float32'),				#y MSM
 			('z','float32'),				#z MSM
@@ -142,10 +151,10 @@ dtype10s = [('Date','int32'),
 			('StartIndex','int32'),
 			('ScanType','int8'),
 			('Tau','float32'),
-			('CDRQuality','int16'),
+			('CDRQuality','uint16'),		#16-bit CDR quality flags; 65535 = not present
 			('NTPQuality','int16'),
 			('Ion','U3'),
-			('HasNTP','bool8'),
+			('HasNTP','bool'),
 			('EQBins','float32',(64,)),
 			('Efficiency','float32',(64,)),
 			('VBins','float32',(64,)),
@@ -159,5 +168,3 @@ dtype10s = [('Date','int32'),
 			('tk','float32'),
 			('pk','float32'),
 			('k','float32')]
-			
-
